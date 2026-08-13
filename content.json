@@ -28,12 +28,7 @@
       "id": "videos",
       "name": "الفيديوهات",
       "icon": "🎥",
-      "folders": [
-        {
-          "id": "documentaries",
-          "name": "وثائقي"
-        }
-      ],
+      "folders": [],
       "items": [
         {
           "id": 3,
