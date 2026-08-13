@@ -13,20 +13,300 @@
   <link rel="stylesheet" href="css/style.css">
   <style>
     body { background: var(--primary-black); }
-    .admin-main { min-height: 100vh; }
-    .folder-select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--gold); background: var(--glass-bg); color: var(--text-primary); font-family: inherit; }
-    .section-card, .folder-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; margin-bottom: 12px; }
-    .section-card .info, .folder-card .info { display: flex; align-items: center; gap: 12px; }
-    .section-card .icon { font-size: 1.5rem; }
-    .section-card .name, .folder-card .name { font-weight: 600; color: var(--text-primary); }
-    .section-card .actions, .folder-card .actions { display: flex; gap: 8px; }
-    .admin-action-btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
-    .admin-action-btn.edit { background: var(--gold); color: var(--primary-black); }
-    .admin-action-btn.delete { background: #c0392b; color: white; }
-    .add-btn { width: 100%; padding: 14px; margin-bottom: 16px; background: rgba(212,175,55,0.15); border: 2px dashed var(--gold); border-radius: 12px; color: var(--gold); font-weight: 600; cursor: pointer; font-family: inherit; }
-    .add-btn:hover { background: rgba(212,175,55,0.25); }
-    .tab-section { margin-bottom: 24px; }
-    .tab-section h3 { color: var(--gold); margin-bottom: 12px; font-size: 1.1rem; }
+    .admin-main { min-height: 100vh; padding-bottom: 40px; }
+
+    /* Header */
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(212,175,55,0.2);
+    }
+    .admin-header .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+    .admin-header .title img {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--gold);
+    }
+    .logout-btn {
+      background: rgba(192,57,43,0.2);
+      color: #e74c3c;
+      border: 1px solid rgba(192,57,43,0.4);
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-family: inherit;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      margin: 12px 16px;
+      background: rgba(212,175,55,0.08);
+      border-radius: 10px;
+      border: 1px solid rgba(212,175,55,0.15);
+    }
+    .breadcrumb .back-btn {
+      background: var(--gold);
+      color: var(--primary-black);
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+    .breadcrumb .crumb {
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .breadcrumb .crumb-sep {
+      color: var(--text-secondary);
+    }
+
+    /* Page Title */
+    .page-title {
+      padding: 8px 20px;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    /* Cards */
+    .admin-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      margin: 8px 16px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .admin-card:hover {
+      border-color: rgba(212,175,55,0.4);
+      transform: translateX(-4px);
+    }
+    .admin-card .card-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .admin-card .card-icon {
+      font-size: 1.8rem;
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(212,175,55,0.1);
+      border-radius: 12px;
+    }
+    .admin-card .card-name {
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+    .admin-card .card-meta {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      margin-top: 2px;
+    }
+    .admin-card .card-arrow {
+      color: var(--gold);
+      font-size: 1.2rem;
+    }
+
+    /* Add Button (Floating style) */
+    .add-fab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 16px;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.08));
+      border: 2px dashed var(--gold);
+      border-radius: 14px;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .add-fab:hover {
+      background: linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.15));
+    }
+
+    /* Media Items in Folder */
+    .media-item-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      margin: 8px 16px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+    }
+    .media-item-card img, .media-item-card .thumb-placeholder {
+      width: 60px; height: 60px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+    }
+    .media-item-card .media-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .media-item-card .media-title {
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .media-item-card .media-desc {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .media-item-card .delete-btn {
+      background: rgba(192,57,43,0.15);
+      color: #e74c3c;
+      border: none;
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Upload Area */
+    .upload-area {
+      margin: 16px;
+      padding: 32px 20px;
+      border: 2px dashed rgba(212,175,55,0.3);
+      border-radius: 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(212,175,55,0.03);
+    }
+    .upload-area:hover {
+      border-color: var(--gold);
+      background: rgba(212,175,55,0.08);
+    }
+    .upload-area .upload-icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-area .upload-text { color: var(--text-secondary); font-size: 0.9rem; }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000; padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+      width: 100%; max-width: 420px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute; top: 16px; left: 16px;
+      background: none; border: none;
+      color: var(--text-secondary);
+      font-size: 1.2rem; cursor: pointer;
+    }
+    .modal-title {
+      color: var(--gold);
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(212,175,55,0.3);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: var(--gold);
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--gold), #b8962e);
+      color: var(--primary-black);
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 12px 24px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      z-index: 2000;
+      transition: transform 0.3s;
+      white-space: nowrap;
+    }
+    .toast.active { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #c0392b; }
+    .toast.info { background: #2980b9; }
   </style>
 </head>
 <body>
@@ -34,127 +314,25 @@
   <div class="bg-noise"></div>
 
   <div class="admin-main" id="admin-main">
-    <!-- Admin Header -->
+    <!-- Header -->
     <div class="admin-header">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <img src="icons/icon-192x192.png" alt="شعار" style="width:40px;height:40px;border-radius:10px;border:1px solid var(--gold);">
-        <span style="color:var(--gold);font-weight:700;font-size:1.2rem;">لوحة الإدارة</span>
+      <div class="title">
+        <img src="icons/icon-192x192.png" alt="شعار">
+        <span>لوحة الإدارة</span>
       </div>
-      <button class="submit-btn" id="admin-logout" style="padding:10px 24px;font-size:0.9rem;">خروج</button>
+      <button class="logout-btn" id="admin-logout">خروج</button>
     </div>
 
-    <!-- Admin Nav -->
-    <div class="admin-nav">
-      <button class="admin-nav-btn active" data-tab="content">📝 المحتوى</button>
-      <button class="admin-nav-btn" data-tab="sections">⚙️ الأقسام</button>
-      <button class="admin-nav-btn" data-tab="folders">📁 المجلدات</button>
-    </div>
-
-    <!-- Tab: Content -->
-    <div class="admin-content" id="tab-content">
-      <div style="margin-bottom:16px;">
-        <label style="color:var(--text-secondary);display:block;margin-bottom:8px;">القسم:</label>
-        <select class="folder-select" id="content-section-select">
-          <option value="images">🖼 الصور</option>
-          <option value="videos">🎥 الفيديوهات</option>
-          <option value="audios">🎧 المقاطع الصوتية</option>
-        </select>
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="color:var(--text-secondary);display:block;margin-bottom:8px;">المجلد (اختياري):</label>
-        <select class="folder-select" id="content-folder-select">
-          <option value="">📂 بدون مجلد (عام)</option>
-        </select>
-      </div>
-      <div class="upload-area" id="upload-area">
-        <div class="upload-icon">📤</div>
-        <div class="upload-text">اسحب الملفات هنا أو اضغط للاختيار</div>
-        <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*" style="display:none;">
-      </div>
-      <div id="admin-content"></div>
-    </div>
-
-    <!-- Tab: Sections -->
-    <div class="admin-content" id="tab-sections" style="display:none;">
-      <button class="add-btn" id="add-section-btn">+ إضافة قسم جديد</button>
-      <div id="sections-list"></div>
-    </div>
-
-    <!-- Tab: Folders -->
-    <div class="admin-content" id="tab-folders" style="display:none;">
-      <div style="margin-bottom:16px;">
-        <label style="color:var(--text-secondary);display:block;margin-bottom:8px;">القسم:</label>
-        <select class="folder-select" id="folder-section-select">
-          <option value="images">🖼 الصور</option>
-          <option value="videos">🎥 الفيديوهات</option>
-          <option value="audios">🎧 المقاطع الصوتية</option>
-        </select>
-      </div>
-      <button class="add-btn" id="add-folder-btn">+ إضافة مجلد جديد</button>
-      <div id="folders-list"></div>
-    </div>
+    <!-- Dynamic Content -->
+    <div id="admin-view"></div>
   </div>
 
-  <!-- Edit/Add Modal -->
+  <!-- Modal -->
   <div class="modal-overlay" id="modal-overlay">
-    <div class="glass-panel modal-content">
+    <div class="modal-content">
       <button class="modal-close" id="modal-close">✕</button>
-      <h3 class="modal-title" id="modal-title">إضافة محتوى</h3>
-      <div id="modal-preview" style="margin-bottom:20px;text-align:center;"></div>
-      <div class="form-group">
-        <label class="form-label">العنوان</label>
-        <input type="text" class="form-input" id="item-title" placeholder="عنوان المحتوى">
-      </div>
-      <div class="form-group">
-        <label class="form-label">الوصف</label>
-        <textarea class="form-textarea" id="item-desc" placeholder="وصف المحتوى"></textarea>
-      </div>
-      <div class="form-group" id="folder-select-group" style="display:none;">
-        <label class="form-label">المجلد</label>
-        <select class="folder-select" id="item-folder-select">
-          <option value="">بدون مجلد</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:16px 0;">
-        <label style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);cursor:pointer;">
-          <input type="checkbox" id="item-hidden" style="width:18px;height:18px;accent-color:var(--gold);">
-          <span>مخفي</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);cursor:pointer;">
-          <input type="checkbox" id="item-featured" style="width:18px;height:18px;accent-color:var(--gold);">
-          <span>مميز</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);cursor:pointer;">
-          <input type="checkbox" id="item-latest" style="width:18px;height:18px;accent-color:var(--gold);" checked>
-          <span>جديد</span>
-        </label>
-      </div>
-      <button class="submit-btn" id="save-item-btn" style="width:100%;">حفظ</button>
-    </div>
-  </div>
-
-  <!-- Section/Folder Modal -->
-  <div class="modal-overlay" id="manage-modal-overlay">
-    <div class="glass-panel modal-content">
-      <button class="modal-close" id="manage-modal-close">✕</button>
-      <h3 class="modal-title" id="manage-modal-title">إضافة</h3>
-      <div class="form-group">
-        <label class="form-label">الاسم</label>
-        <input type="text" class="form-input" id="manage-name" placeholder="الاسم">
-      </div>
-      <div class="form-group" id="manage-icon-group">
-        <label class="form-label">الأيقونة (emoji)</label>
-        <input type="text" class="form-input" id="manage-icon" placeholder="🖼" maxlength="2">
-      </div>
-      <div class="form-group" id="manage-type-group" style="display:none;">
-        <label class="form-label">نوع المحتوى</label>
-        <select class="folder-select" id="manage-type">
-          <option value="image">🖼 صور</option>
-          <option value="video">🎥 فيديو</option>
-          <option value="audio">🎧 صوت</option>
-        </select>
-      </div>
-      <button class="submit-btn" id="manage-save-btn" style="width:100%;">حفظ</button>
+      <h3 class="modal-title" id="modal-title">عنوان</h3>
+      <div id="modal-body"></div>
     </div>
   </div>
 
