@@ -30,10 +30,6 @@
       "icon": "🎥",
       "folders": [
         {
-          "id": "lectures",
-          "name": "محاضرات"
-        },
-        {
           "id": "documentaries",
           "name": "وثائقي"
         }
@@ -43,7 +39,6 @@
           "id": 3,
           "title": "فيديو توضيحي 1",
           "description": "وصف الفيديو الأول",
-          "folderId": "lectures",
           "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
           "thumbnail": "https://picsum.photos/800/450?random=3",
           "type": "video"
