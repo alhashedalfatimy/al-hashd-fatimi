@@ -1,10 +1,19 @@
 // ===== Admin State =====
 let repoContent = { sections: [] };
-let navStack = []; // [{type:'sections'}, {type:'section', id:'images'}, {type:'folder', sectionId:'images', folderId:'imam-ali'}]
+let navStack = [];
+let currentUploadFiles = [];
 
-const GITHUB_TOKEN = sessionStorage.getItem('github_token') || '';
 const REPO = 'alhashedalfatimy/al-hashd-fatimi';
 const BRANCH = 'main';
+
+// Get token from localStorage (persists forever)
+function getToken() {
+  return localStorage.getItem('github_token') || sessionStorage.getItem('github_token') || '';
+}
+function setToken(token) {
+  localStorage.setItem('github_token', token);
+  sessionStorage.setItem('github_token', token);
+}
 
 // ===== Initialize Admin =====
 document.addEventListener('DOMContentLoaded', async () => {
@@ -13,15 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  if (!GITHUB_TOKEN) {
-    const token = prompt('أدخل توكن GitHub الخاص بك:\nhttps://github.com/settings/tokens');
-    if (token) {
-      sessionStorage.setItem('github_token', token);
-      location.reload();
-    } else {
-      showToast('يجب إدخال التوكن', 'error');
+  let token = getToken();
+
+  // If no token stored, ask once and save forever
+  if (!token) {
+    token = prompt('أدخل توكن GitHub (مرة واحدة فقط):\nhttps://github.com/settings/tokens');
+    if (!token) {
+      showToast('يجب إدخال التوكن للمتابعة', 'error');
+      return;
     }
-    return;
+    setToken(token);
   }
 
   try {
@@ -59,11 +69,12 @@ function migrateOldContent(old) {
 
 // ===== GitHub API =====
 async function githubApi(path, method = 'GET', body = null) {
+  const token = getToken();
   const url = path.startsWith('http') ? path : 'https://api.github.com/repos/' + REPO + path;
   const opts = {
     method,
     headers: {
-      'Authorization': 'token ' + GITHUB_TOKEN,
+      'Authorization': 'token ' + token,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json',
       'User-Agent': 'AlHashdAdmin'
@@ -71,7 +82,10 @@ async function githubApi(path, method = 'GET', body = null) {
   };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
-  if (!resp.ok) throw new Error(await resp.text());
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(errText);
+  }
   if (resp.status === 204) return null;
   return resp.json();
 }
@@ -104,9 +118,7 @@ function renderSectionsPage() {
   const container = document.getElementById('admin-view');
   const sections = repoContent.sections || [];
 
-  let html = `
-    <div class="page-title">📋 الأقسام</div>
-  `;
+  let html = `<div class="page-title">📋 الأقسام</div>`;
 
   if (sections.length === 0) {
     html += `<div class="empty-state"><div class="icon">📂</div><div>لا توجد أقسام</div></div>`;
@@ -140,14 +152,13 @@ function renderSectionsPage() {
   window.scrollTo(0, 0);
 }
 
-// ===== Page 2: Section (Folders List) =====
+// ===== Page 2: Section (Folders List ONLY) =====
 function renderSectionPage(sectionId) {
   const container = document.getElementById('admin-view');
   const section = repoContent.sections?.find(s => s.id === sectionId);
   if (!section) { popNav(); return; }
 
   const folders = section.folders || [];
-  const itemsWithoutFolder = (section.items || []).filter(i => !i.folderId);
 
   let html = `
     <div class="breadcrumb">
@@ -158,41 +169,24 @@ function renderSectionPage(sectionId) {
     <div class="page-title">📁 المجلدات</div>
   `;
 
-  // General folder (items without folder)
-  if (itemsWithoutFolder.length > 0 || folders.length === 0) {
-    html += `
-      <div class="admin-card" onclick="pushNav('folder', {sectionId:'${sectionId}', folderId:''})">
-        <div class="card-info">
-          <div class="card-icon">📂</div>
-          <div>
-            <div class="card-name">عام (بدون مجلد)</div>
-            <div class="card-meta">${itemsWithoutFolder.length} عنصر</div>
+  if (folders.length === 0) {
+    html += `<div class="empty-state"><div class="icon">📁</div><div>لا توجد مجلدات في هذا القسم</div></div>`;
+  } else {
+    folders.forEach(folder => {
+      const count = (section.items || []).filter(i => i.folderId === folder.id).length;
+      html += `
+        <div class="admin-card" onclick="pushNav('folder', {sectionId:'${sectionId}', folderId:'${folder.id}'})">
+          <div class="card-info">
+            <div class="card-icon">📁</div>
+            <div>
+              <div class="card-name">${escapeHtml(folder.name)}</div>
+              <div class="card-meta">${count} عنصر</div>
+            </div>
           </div>
+          <div class="card-arrow">‹</div>
         </div>
-        <div class="card-arrow">‹</div>
-      </div>
-    `;
-  }
-
-  // Folders
-  folders.forEach(folder => {
-    const count = (section.items || []).filter(i => i.folderId === folder.id).length;
-    html += `
-      <div class="admin-card" onclick="pushNav('folder', {sectionId:'${sectionId}', folderId:'${folder.id}'})">
-        <div class="card-info">
-          <div class="card-icon">📁</div>
-          <div>
-            <div class="card-name">${escapeHtml(folder.name)}</div>
-            <div class="card-meta">${count} عنصر</div>
-          </div>
-        </div>
-        <div class="card-arrow">‹</div>
-      </div>
-    `;
-  });
-
-  if (folders.length === 0 && itemsWithoutFolder.length === 0) {
-    html += `<div class="empty-state"><div class="icon">📁</div><div>لا توجد مجلدات</div></div>`;
+      `;
+    });
   }
 
   html += `
@@ -206,15 +200,17 @@ function renderSectionPage(sectionId) {
   window.scrollTo(0, 0);
 }
 
-// ===== Page 3: Folder (Media Items) =====
+// ===== Page 3: Folder (Media Items + Upload) =====
 function renderFolderPage(sectionId, folderId) {
   const container = document.getElementById('admin-view');
   const section = repoContent.sections?.find(s => s.id === sectionId);
   if (!section) { popNav(); return; }
 
-  const folder = folderId ? section.folders?.find(f => f.id === folderId) : null;
-  const folderName = folder ? folder.name : 'عام';
-  const items = (section.items || []).filter(i => folderId ? i.folderId === folderId : !i.folderId);
+  const folder = section.folders?.find(f => f.id === folderId);
+  if (!folder) { popNav(); return; }
+
+  const folderName = folder.name;
+  const items = (section.items || []).filter(i => i.folderId === folderId);
 
   let html = `
     <div class="breadcrumb">
@@ -227,11 +223,11 @@ function renderFolderPage(sectionId, folderId) {
     <div class="page-title">📂 ${escapeHtml(folderName)}</div>
   `;
 
-  // Upload area
+  // Upload area - only inside folder
   html += `
     <div class="upload-area" id="upload-area">
       <div class="upload-icon">📤</div>
-      <div class="upload-text">اضغط هنا لإضافة وسائط جديدة</div>
+      <div class="upload-text">اضغط هنا لإضافة وسائط لهذا المجلد</div>
       <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*" style="display:none;">
     </div>
   `;
@@ -240,7 +236,7 @@ function renderFolderPage(sectionId, folderId) {
   if (items.length === 0) {
     html += `<div class="empty-state"><div class="icon">📂</div><div>لا توجد وسائط في هذا المجلد</div></div>`;
   } else {
-    items.forEach((item, idx) => {
+    items.forEach((item) => {
       const thumb = item.thumbnail || item.cover || item.url || '';
       const isAudio = item.type === 'audio' || section.id === 'audios';
       html += `
@@ -271,7 +267,7 @@ function renderFolderPage(sectionId, folderId) {
   }, 0);
 }
 
-// ===== Upload Media =====
+// ===== Upload Media (ALWAYS inside folder) =====
 async function handleFileUpload(e, sectionId, folderId) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
@@ -279,7 +275,6 @@ async function handleFileUpload(e, sectionId, folderId) {
   const section = repoContent.sections?.find(s => s.id === sectionId);
   const file = files[0];
 
-  // Show modal for title
   const title = prompt('أدخل عنوان الوسائط:', file.name.split('.')[0]);
   if (!title) return;
   const description = prompt('أدخل وصف (اختياري):', '') || '';
@@ -307,11 +302,11 @@ async function handleFileUpload(e, sectionId, folderId) {
         id: Date.now(),
         title: title,
         description: description,
+        folderId: folderId,  // ALWAYS inside folder
         url: fileUrl,
         type: sectionId === 'images' ? 'image' : sectionId === 'videos' ? 'video' : 'audio'
       };
 
-      if (folderId) newItem.folderId = folderId;
       if (sectionId === 'images') newItem.thumbnail = fileUrl;
       else if (sectionId === 'videos') newItem.thumbnail = fileUrl;
       else { newItem.cover = fileUrl; newItem.duration = '--:--'; }
@@ -427,7 +422,7 @@ async function saveContentJson() {
 function setupListeners() {
   document.getElementById('admin-logout').onclick = () => {
     sessionStorage.removeItem('admin_auth');
-    sessionStorage.removeItem('github_token');
+    // Keep token in localStorage so user doesn't re-enter it
     window.location.href = 'index.html';
   };
   document.getElementById('modal-close').onclick = closeModal;
