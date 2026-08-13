@@ -1,12 +1,6 @@
 // ===== Admin State =====
-let currentAdminTab = 'content';
-let uploadFiles = [];
 let repoContent = { sections: [] };
-let editingItem = null;
-let editingSection = null;
-let editingFolder = null;
-let currentContentSection = 'images';
-let currentFolderSection = 'images';
+let navStack = []; // [{type:'sections'}, {type:'section', id:'images'}, {type:'folder', sectionId:'images', folderId:'imam-ali'}]
 
 const GITHUB_TOKEN = sessionStorage.getItem('github_token') || '';
 const REPO = 'alhashedalfatimy/al-hashd-fatimi';
@@ -20,40 +14,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (!GITHUB_TOKEN) {
-    const token = prompt('أدخل توكن GitHub الخاص بك (للرفع والتعديل):\n\nيمكنك إنشاء توكن من:\nhttps://github.com/settings/tokens\n\nاحفظه لاستخدامه لاحقاً');
+    const token = prompt('أدخل توكن GitHub الخاص بك:\nhttps://github.com/settings/tokens');
     if (token) {
       sessionStorage.setItem('github_token', token);
       location.reload();
     } else {
-      showToast('يجب إدخال التوكن للمتابعة', 'error');
+      showToast('يجب إدخال التوكن', 'error');
     }
     return;
   }
 
   try {
     await loadContent();
-    setupAdminListeners();
-    showTab('content');
-    updateSectionSelects();
+    renderSectionsPage();
+    setupListeners();
   } catch (err) {
-    console.error('Admin init error:', err);
-    showToast('خطأ في تحميل لوحة الإدارة', 'error');
+    console.error(err);
+    showToast('خطأ في التحميل', 'error');
   }
 });
 
-// ===== Load Content from GitHub =====
+// ===== Load Content =====
 async function loadContent() {
   try {
     const resp = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/content.json?nocache=' + Date.now());
     if (resp.ok) {
       repoContent = await resp.json();
-      // Migrate old format
-      if (!repoContent.sections) {
-        repoContent = migrateOldContent(repoContent);
-      }
+      if (!repoContent.sections) repoContent = migrateOldContent(repoContent);
     }
   } catch (err) {
-    console.error('Load content error:', err);
     repoContent = { sections: [] };
   }
 }
@@ -68,11 +57,11 @@ function migrateOldContent(old) {
   };
 }
 
-// ===== GitHub API Helper =====
+// ===== GitHub API =====
 async function githubApi(path, method = 'GET', body = null) {
   const url = path.startsWith('http') ? path : 'https://api.github.com/repos/' + REPO + path;
-  const options = {
-    method: method,
+  const opts = {
+    method,
     headers: {
       'Authorization': 'token ' + GITHUB_TOKEN,
       'Accept': 'application/vnd.github.v3+json',
@@ -80,550 +69,375 @@ async function githubApi(path, method = 'GET', body = null) {
       'User-Agent': 'AlHashdAdmin'
     }
   };
-  if (body) options.body = JSON.stringify(body);
-
-  const resp = await fetch(url, options);
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(err);
-  }
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(url, opts);
+  if (!resp.ok) throw new Error(await resp.text());
   if (resp.status === 204) return null;
-  return await resp.json();
+  return resp.json();
 }
 
-// ===== Event Listeners =====
-function setupAdminListeners() {
-  // Nav tabs
-  document.querySelectorAll('.admin-nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      showTab(btn.dataset.tab);
-    });
-  });
-
-  // Logout
-  document.getElementById('admin-logout')?.addEventListener('click', () => {
-    sessionStorage.removeItem('admin_auth');
-    sessionStorage.removeItem('github_token');
-    window.location.href = 'index.html';
-  });
-
-  // Upload area
-  const uploadArea = document.getElementById('upload-area');
-  if (uploadArea) {
-    uploadArea.addEventListener('click', () => document.getElementById('file-input').click());
-    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-    uploadArea.addEventListener('drop', handleFileDrop);
-  }
-
-  document.getElementById('file-input')?.addEventListener('change', handleFileSelect);
-
-  // Content section select
-  document.getElementById('content-section-select')?.addEventListener('change', (e) => {
-    currentContentSection = e.target.value;
-    updateFolderSelect('content-folder-select', currentContentSection);
-    loadContentTab(currentContentSection);
-  });
-
-  // Folder section select
-  document.getElementById('folder-section-select')?.addEventListener('change', (e) => {
-    currentFolderSection = e.target.value;
-    renderFoldersList();
-  });
-
-  // Add buttons
-  document.getElementById('add-section-btn')?.addEventListener('click', () => openManageModal('section'));
-  document.getElementById('add-folder-btn')?.addEventListener('click', () => openManageModal('folder'));
-
-  // Modals
-  document.getElementById('modal-close')?.addEventListener('click', closeModal);
-  document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
-    if (e.target.id === 'modal-overlay') closeModal();
-  });
-  document.getElementById('save-item-btn')?.addEventListener('click', saveItem);
-
-  document.getElementById('manage-modal-close')?.addEventListener('click', closeManageModal);
-  document.getElementById('manage-modal-overlay')?.addEventListener('click', (e) => {
-    if (e.target.id === 'manage-modal-overlay') closeManageModal();
-  });
-  document.getElementById('manage-save-btn')?.addEventListener('click', saveManageItem);
+// ===== Navigation =====
+function pushNav(type, data = {}) {
+  navStack.push({ type, ...data });
+  renderCurrentPage();
 }
 
-// ===== Show Tab =====
-function showTab(tab) {
-  currentAdminTab = tab;
-  document.getElementById('tab-content').style.display = tab === 'content' ? 'block' : 'none';
-  document.getElementById('tab-sections').style.display = tab === 'sections' ? 'block' : 'none';
-  document.getElementById('tab-folders').style.display = tab === 'folders' ? 'block' : 'none';
+function popNav() {
+  navStack.pop();
+  renderCurrentPage();
+}
 
-  if (tab === 'content') {
-    updateFolderSelect('content-folder-select', currentContentSection);
-    loadContentTab(currentContentSection);
-  } else if (tab === 'sections') {
-    renderSectionsList();
-  } else if (tab === 'folders') {
-    renderFoldersList();
+function renderCurrentPage() {
+  const current = navStack[navStack.length - 1];
+  if (!current || current.type === 'sections') {
+    renderSectionsPage();
+  } else if (current.type === 'section') {
+    renderSectionPage(current.id);
+  } else if (current.type === 'folder') {
+    renderFolderPage(current.sectionId, current.folderId);
   }
 }
 
-// ===== Update Section Selects =====
-function updateSectionSelects() {
-  const selects = ['content-section-select', 'folder-section-select'];
-  selects.forEach(id => {
-    const select = document.getElementById(id);
-    if (!select) return;
-    select.innerHTML = '';
-    (repoContent.sections || []).forEach(sec => {
-      const opt = document.createElement('option');
-      opt.value = sec.id;
-      opt.textContent = (sec.icon || '📁') + ' ' + sec.name;
-      select.appendChild(opt);
-    });
-  });
-}
-
-function updateFolderSelect(selectId, sectionId) {
-  const select = document.getElementById(selectId);
-  if (!select) return;
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  select.innerHTML = '<option value="">📂 بدون مجلد (عام)</option>';
-  (section?.folders || []).forEach(folder => {
-    const opt = document.createElement('option');
-    opt.value = folder.id;
-    opt.textContent = '📁 ' + folder.name;
-    select.appendChild(opt);
-  });
-}
-
-// ===== Load Content Tab =====
-function loadContentTab(sectionId) {
-  const container = document.getElementById('admin-content');
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  if (!section) return;
-
-  const folderId = document.getElementById('content-folder-select')?.value || '';
-  let items = section.items || [];
-  if (folderId) {
-    items = items.filter(i => i.folderId === folderId);
-  }
-
-  renderAdminTable(container, items, sectionId);
-}
-
-function renderAdminTable(container, items, type) {
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📂</div>
-        <div class="empty-state-text">لا يوجد محتوى</div>
-      </div>
-    `;
-    return;
-  }
-
-  let html = `
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>الصورة</th>
-          <th>العنوان</th>
-          <th>الوصف</th>
-          <th>المجلد</th>
-          <th>الإجراءات</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  const section = repoContent.sections?.find(s => s.id === type);
-  const folders = section?.folders || [];
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const folder = folders.find(f => f.id === item.folderId);
-    html += `
-      <tr>
-        <td><img src="${item.thumbnail || item.cover || item.url || ''}" alt="${item.title}" onerror="this.src='https://via.placeholder.com/60x40'"></td>
-        <td>${escapeHtml(item.title)}</td>
-        <td>${escapeHtml(item.description || '').substring(0, 50)}...</td>
-        <td>${folder ? escapeHtml(folder.name) : 'عام'}</td>
-        <td>
-          <button class="admin-action-btn delete" onclick="deleteItem(${i}, '${type}', '${item.folderId || ''}')">حذف</button>
-        </td>
-      </tr>
-    `;
-  }
-
-  html += '</tbody></table>';
-  container.innerHTML = html;
-}
-
-// ===== Sections Management =====
-function renderSectionsList() {
-  const container = document.getElementById('sections-list');
+// ===== Page 1: Sections List =====
+function renderSectionsPage() {
+  navStack = [{ type: 'sections' }];
+  const container = document.getElementById('admin-view');
   const sections = repoContent.sections || [];
 
+  let html = `
+    <div class="page-title">📋 الأقسام</div>
+  `;
+
   if (sections.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">لا توجد أقسام</div></div>';
-    return;
+    html += `<div class="empty-state"><div class="icon">📂</div><div>لا توجد أقسام</div></div>`;
+  } else {
+    sections.forEach(sec => {
+      const totalItems = sec.items?.length || 0;
+      const folderCount = sec.folders?.length || 0;
+      html += `
+        <div class="admin-card" onclick="pushNav('section', {id:'${sec.id}'})">
+          <div class="card-info">
+            <div class="card-icon">${sec.icon || '📁'}</div>
+            <div>
+              <div class="card-name">${escapeHtml(sec.name)}</div>
+              <div class="card-meta">${folderCount} مجلد · ${totalItems} عنصر</div>
+            </div>
+          </div>
+          <div class="card-arrow">‹</div>
+        </div>
+      `;
+    });
   }
 
-  container.innerHTML = sections.map((sec, index) => `
-    <div class="glass-card section-card">
-      <div class="info">
-        <span class="icon">${sec.icon || '📁'}</span>
-        <span class="name">${escapeHtml(sec.name)}</span>
-      </div>
-      <div class="actions">
-        <button class="admin-action-btn edit" onclick="editSection(${index})">تعديل</button>
-        <button class="admin-action-btn delete" onclick="deleteSection(${index})">حذف</button>
-      </div>
+  html += `
+    <div class="add-fab" onclick="openAddSectionModal()">
+      <span>➕</span>
+      <span>إضافة قسم جديد</span>
     </div>
-  `).join('');
+  `;
+
+  container.innerHTML = html;
+  window.scrollTo(0, 0);
 }
 
-function editSection(index) {
-  editingSection = index;
-  const sec = repoContent.sections[index];
-  document.getElementById('manage-modal-title').textContent = 'تعديل قسم';
-  document.getElementById('manage-name').value = sec.name;
-  document.getElementById('manage-icon').value = sec.icon || '';
-  document.getElementById('manage-icon-group').style.display = 'block';
-  document.getElementById('manage-type-group').style.display = 'none';
-  document.getElementById('manage-modal-overlay').classList.add('active');
-}
+// ===== Page 2: Section (Folders List) =====
+function renderSectionPage(sectionId) {
+  const container = document.getElementById('admin-view');
+  const section = repoContent.sections?.find(s => s.id === sectionId);
+  if (!section) { popNav(); return; }
 
-async function deleteSection(index) {
-  if (!confirm('هل أنت متأكد من حذف هذا القسم وجميع محتوياته؟')) return;
-  repoContent.sections.splice(index, 1);
-  await saveContentJson();
-  renderSectionsList();
-  updateSectionSelects();
-  showToast('تم حذف القسم', 'success');
-}
+  const folders = section.folders || [];
+  const itemsWithoutFolder = (section.items || []).filter(i => !i.folderId);
 
-// ===== Folders Management =====
-function renderFoldersList() {
-  const container = document.getElementById('folders-list');
-  const section = repoContent.sections?.find(s => s.id === currentFolderSection);
-  const folders = section?.folders || [];
+  let html = `
+    <div class="breadcrumb">
+      <button class="back-btn" onclick="popNav()">← رجوع</button>
+      <span class="crumb-sep">|</span>
+      <span class="crumb">${escapeHtml(section.name)}</span>
+    </div>
+    <div class="page-title">📁 المجلدات</div>
+  `;
 
-  if (folders.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">لا توجد مجلدات</div></div>';
-    return;
-  }
-
-  container.innerHTML = folders.map((folder, index) => {
-    const count = section.items?.filter(i => i.folderId === folder.id).length || 0;
-    return `
-      <div class="glass-card folder-card">
-        <div class="info">
-          <span class="icon">📁</span>
+  // General folder (items without folder)
+  if (itemsWithoutFolder.length > 0 || folders.length === 0) {
+    html += `
+      <div class="admin-card" onclick="pushNav('folder', {sectionId:'${sectionId}', folderId:''})">
+        <div class="card-info">
+          <div class="card-icon">📂</div>
           <div>
-            <div class="name">${escapeHtml(folder.name)}</div>
-            <div style="color:var(--text-secondary);font-size:0.85rem;">${count} عنصر</div>
+            <div class="card-name">عام (بدون مجلد)</div>
+            <div class="card-meta">${itemsWithoutFolder.length} عنصر</div>
           </div>
         </div>
-        <div class="actions">
-          <button class="admin-action-btn edit" onclick="editFolder(${index})">تعديل</button>
-          <button class="admin-action-btn delete" onclick="deleteFolder(${index})">حذف</button>
-        </div>
+        <div class="card-arrow">‹</div>
       </div>
     `;
-  }).join('');
-}
+  }
 
-function editFolder(index) {
-  editingFolder = { sectionId: currentFolderSection, index: index };
-  const section = repoContent.sections?.find(s => s.id === currentFolderSection);
-  const folder = section.folders[index];
-  document.getElementById('manage-modal-title').textContent = 'تعديل مجلد';
-  document.getElementById('manage-name').value = folder.name;
-  document.getElementById('manage-icon-group').style.display = 'none';
-  document.getElementById('manage-type-group').style.display = 'none';
-  document.getElementById('manage-modal-overlay').classList.add('active');
-}
-
-async function deleteFolder(index) {
-  if (!confirm('هل أنت متأكد من حذف هذا المجلد؟ (لن يتم حذف العناصر، ستصبح بدون مجلد)')) return;
-  const section = repoContent.sections?.find(s => s.id === currentFolderSection);
-  const folderId = section.folders[index].id;
-  section.folders.splice(index, 1);
-  // Remove folderId from items
-  (section.items || []).forEach(item => {
-    if (item.folderId === folderId) delete item.folderId;
+  // Folders
+  folders.forEach(folder => {
+    const count = (section.items || []).filter(i => i.folderId === folder.id).length;
+    html += `
+      <div class="admin-card" onclick="pushNav('folder', {sectionId:'${sectionId}', folderId:'${folder.id}'})">
+        <div class="card-info">
+          <div class="card-icon">📁</div>
+          <div>
+            <div class="card-name">${escapeHtml(folder.name)}</div>
+            <div class="card-meta">${count} عنصر</div>
+          </div>
+        </div>
+        <div class="card-arrow">‹</div>
+      </div>
+    `;
   });
-  await saveContentJson();
-  renderFoldersList();
-  showToast('تم حذف المجلد', 'success');
+
+  if (folders.length === 0 && itemsWithoutFolder.length === 0) {
+    html += `<div class="empty-state"><div class="icon">📁</div><div>لا توجد مجلدات</div></div>`;
+  }
+
+  html += `
+    <div class="add-fab" onclick="openAddFolderModal('${sectionId}')">
+      <span>➕</span>
+      <span>إضافة مجلد جديد</span>
+    </div>
+  `;
+
+  container.innerHTML = html;
+  window.scrollTo(0, 0);
 }
 
-// ===== Manage Modal =====
-function openManageModal(type) {
-  editingSection = null;
-  editingFolder = null;
-  document.getElementById('manage-name').value = '';
-  document.getElementById('manage-icon').value = '';
-  document.getElementById('manage-modal-overlay').classList.add('active');
+// ===== Page 3: Folder (Media Items) =====
+function renderFolderPage(sectionId, folderId) {
+  const container = document.getElementById('admin-view');
+  const section = repoContent.sections?.find(s => s.id === sectionId);
+  if (!section) { popNav(); return; }
 
-  if (type === 'section') {
-    document.getElementById('manage-modal-title').textContent = 'إضافة قسم جديد';
-    document.getElementById('manage-icon-group').style.display = 'block';
-    document.getElementById('manage-type-group').style.display = 'block';
+  const folder = folderId ? section.folders?.find(f => f.id === folderId) : null;
+  const folderName = folder ? folder.name : 'عام';
+  const items = (section.items || []).filter(i => folderId ? i.folderId === folderId : !i.folderId);
+
+  let html = `
+    <div class="breadcrumb">
+      <button class="back-btn" onclick="popNav()">← رجوع</button>
+      <span class="crumb-sep">|</span>
+      <span class="crumb">${escapeHtml(section.name)}</span>
+      <span class="crumb-sep">›</span>
+      <span class="crumb">${escapeHtml(folderName)}</span>
+    </div>
+    <div class="page-title">📂 ${escapeHtml(folderName)}</div>
+  `;
+
+  // Upload area
+  html += `
+    <div class="upload-area" id="upload-area">
+      <div class="upload-icon">📤</div>
+      <div class="upload-text">اضغط هنا لإضافة وسائط جديدة</div>
+      <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*" style="display:none;">
+    </div>
+  `;
+
+  // Items list
+  if (items.length === 0) {
+    html += `<div class="empty-state"><div class="icon">📂</div><div>لا توجد وسائط في هذا المجلد</div></div>`;
   } else {
-    document.getElementById('manage-modal-title').textContent = 'إضافة مجلد جديد';
-    document.getElementById('manage-icon-group').style.display = 'none';
-    document.getElementById('manage-type-group').style.display = 'none';
-  }
-}
-
-function closeManageModal() {
-  document.getElementById('manage-modal-overlay').classList.remove('active');
-  editingSection = null;
-  editingFolder = null;
-}
-
-async function saveManageItem() {
-  const name = document.getElementById('manage-name').value.trim();
-  if (!name) {
-    showToast('الرجاء إدخال الاسم', 'error');
-    return;
+    items.forEach((item, idx) => {
+      const thumb = item.thumbnail || item.cover || item.url || '';
+      const isAudio = item.type === 'audio' || section.id === 'audios';
+      html += `
+        <div class="media-item-card">
+          ${thumb ? `<img src="${thumb}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">` : ''}
+          <div class="thumb-placeholder" style="display:${thumb?'none':'flex'}">${isAudio?'🎧':'🖼'}</div>
+          <div class="media-info">
+            <div class="media-title">${escapeHtml(item.title)}</div>
+            <div class="media-desc">${escapeHtml(item.description || '').substring(0, 40)}${(item.description||'').length>40?'...':''}</div>
+          </div>
+          <button class="delete-btn" onclick="deleteMediaItem('${sectionId}', '${folderId}', ${item.id})" title="حذف">🗑</button>
+        </div>
+      `;
+    });
   }
 
-  try {
-    if (editingSection !== null) {
-      // Edit section
-      const sec = repoContent.sections[editingSection];
-      sec.name = name;
-      sec.icon = document.getElementById('manage-icon').value.trim() || sec.icon;
-    } else if (editingFolder !== null) {
-      // Edit folder
-      const section = repoContent.sections?.find(s => s.id === editingFolder.sectionId);
-      section.folders[editingFolder.index].name = name;
-    } else if (document.getElementById('manage-icon-group').style.display !== 'none') {
-      // Add new section
-      const icon = document.getElementById('manage-icon').value.trim() || '📁';
-      const type = document.getElementById('manage-type').value;
-      const id = 'section_' + Date.now();
-      repoContent.sections.push({
-        id: id,
-        name: name,
-        icon: icon,
-        folders: [],
-        items: [],
-        defaultType: type
-      });
-    } else {
-      // Add new folder
-      const section = repoContent.sections?.find(s => s.id === currentFolderSection);
-      if (!section.folders) section.folders = [];
-      section.folders.push({
-        id: 'folder_' + Date.now(),
-        name: name
-      });
+  container.innerHTML = html;
+  window.scrollTo(0, 0);
+
+  // Setup upload
+  setTimeout(() => {
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    if (uploadArea && fileInput) {
+      uploadArea.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => handleFileUpload(e, sectionId, folderId);
     }
-
-    await saveContentJson();
-    closeManageModal();
-    updateSectionSelects();
-
-    if (currentAdminTab === 'sections') renderSectionsList();
-    if (currentAdminTab === 'folders') renderFoldersList();
-    showToast('تم الحفظ بنجاح', 'success');
-  } catch (err) {
-    console.error(err);
-    showToast('خطأ في الحفظ: ' + err.message, 'error');
-  }
+  }, 0);
 }
 
-// ===== File Upload =====
-function handleFileDrop(e) {
-  e.preventDefault();
-  document.getElementById('upload-area').classList.remove('dragover');
-  const files = Array.from(e.dataTransfer.files);
-  processFiles(files);
-}
-
-function handleFileSelect(e) {
+// ===== Upload Media =====
+async function handleFileUpload(e, sectionId, folderId) {
   const files = Array.from(e.target.files);
-  processFiles(files);
-}
+  if (!files.length) return;
 
-function processFiles(files) {
-  uploadFiles = files;
-  if (files.length > 0) {
-    openUploadModal(files[0]);
-  }
-}
+  const section = repoContent.sections?.find(s => s.id === sectionId);
+  const file = files[0];
 
-function openUploadModal(file) {
-  const modal = document.getElementById('modal-overlay');
-  const section = repoContent.sections?.find(s => s.id === currentContentSection);
-  document.getElementById('modal-title').textContent = 'إضافة ' + (section?.name || 'محتوى');
-  document.getElementById('item-title').value = '';
-  document.getElementById('item-desc').value = '';
+  // Show modal for title
+  const title = prompt('أدخل عنوان الوسائط:', file.name.split('.')[0]);
+  if (!title) return;
+  const description = prompt('أدخل وصف (اختياري):', '') || '';
 
-  // Update folder select in modal
-  const folderSelect = document.getElementById('item-folder-select');
-  folderSelect.innerHTML = '<option value="">بدون مجلد</option>';
-  (section?.folders || []).forEach(folder => {
-    const opt = document.createElement('option');
-    opt.value = folder.id;
-    opt.textContent = folder.name;
-    folderSelect.appendChild(opt);
-  });
-  document.getElementById('folder-select-group').style.display = 'block';
-
-  const preview = document.getElementById('modal-preview');
-  const url = URL.createObjectURL(file);
-
-  if (file.type.startsWith('image/')) {
-    preview.innerHTML = `<img src="${url}" style="max-width:100%;max-height:200px;border-radius:12px;">`;
-  } else if (file.type.startsWith('video/')) {
-    preview.innerHTML = `<video src="${url}" controls style="max-width:100%;max-height:200px;border-radius:12px;"></video>`;
-  } else if (file.type.startsWith('audio/')) {
-    preview.innerHTML = `<audio src="${url}" controls style="width:100%;"></audio>`;
-  }
-
-  modal.classList.add('active');
-}
-
-async function saveItem() {
-  const title = document.getElementById('item-title').value.trim();
-  const description = document.getElementById('item-desc').value.trim();
-  const folderId = document.getElementById('item-folder-select')?.value || '';
-
-  if (!title) {
-    showToast('العنوان مطلوب', 'error');
-    return;
-  }
-
-  showToast('جاري الحفظ...', 'info');
+  showToast('جاري الرفع...', 'info');
 
   try {
-    if (uploadFiles.length > 0) {
-      const file = uploadFiles[0];
-      const filename = Date.now() + '_' + file.name.replace(/\s+/g, '_');
-      const repoPath = 'uploads/' + filename;
+    const filename = Date.now() + '_' + file.name.replace(/\s+/g, '_');
+    const repoPath = 'uploads/' + filename;
 
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async function() {
-        const base64 = reader.result.split(',')[1];
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = async function() {
+      const base64 = reader.result.split(',')[1];
 
-        await githubApi('/contents/' + repoPath, 'PUT', {
-          message: 'Upload ' + filename,
-          content: base64,
-          branch: BRANCH
-        });
+      await githubApi('/contents/' + repoPath, 'PUT', {
+        message: 'Upload ' + filename,
+        content: base64,
+        branch: BRANCH
+      });
 
-        const fileUrl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + repoPath;
-
-        const newItem = {
-          id: Date.now(),
-          title: title,
-          description: description,
-          folderId: folderId || undefined,
-          url: fileUrl,
-          type: currentContentSection === 'images' ? 'image' : currentContentSection === 'videos' ? 'video' : 'audio'
-        };
-
-        if (currentContentSection === 'images') {
-          newItem.thumbnail = fileUrl;
-        } else if (currentContentSection === 'videos') {
-          newItem.thumbnail = fileUrl;
-        } else {
-          newItem.cover = fileUrl;
-          newItem.duration = '--:--';
-        }
-
-        const section = repoContent.sections?.find(s => s.id === currentContentSection);
-        if (!section.items) section.items = [];
-        section.items.push(newItem);
-        await saveContentJson();
-
-        closeModal();
-        loadContentTab(currentContentSection);
-        showToast('تم الرفع بنجاح!', 'success');
-      };
-    } else {
-      const url = prompt('أدخل رابط المحتوى:');
-      if (!url) return;
+      const fileUrl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + repoPath;
 
       const newItem = {
         id: Date.now(),
         title: title,
         description: description,
-        folderId: folderId || undefined,
-        url: url,
-        type: currentContentSection === 'images' ? 'image' : currentContentSection === 'videos' ? 'video' : 'audio'
+        url: fileUrl,
+        type: sectionId === 'images' ? 'image' : sectionId === 'videos' ? 'video' : 'audio'
       };
 
-      if (currentContentSection === 'images') {
-        newItem.thumbnail = url;
-      } else if (currentContentSection === 'videos') {
-        newItem.thumbnail = url;
-      } else {
-        newItem.cover = url;
-        newItem.duration = '--:--';
-      }
+      if (folderId) newItem.folderId = folderId;
+      if (sectionId === 'images') newItem.thumbnail = fileUrl;
+      else if (sectionId === 'videos') newItem.thumbnail = fileUrl;
+      else { newItem.cover = fileUrl; newItem.duration = '--:--'; }
 
-      const section = repoContent.sections?.find(s => s.id === currentContentSection);
       if (!section.items) section.items = [];
       section.items.push(newItem);
       await saveContentJson();
 
-      closeModal();
-      loadContentTab(currentContentSection);
-      showToast('تم الإضافة بنجاح!', 'success');
-    }
+      renderFolderPage(sectionId, folderId);
+      showToast('تم الرفع بنجاح!', 'success');
+    };
   } catch (err) {
     console.error(err);
-    showToast('خطأ في الحفظ: ' + err.message, 'error');
+    showToast('خطأ في الرفع: ' + err.message, 'error');
   }
 }
 
-async function deleteItem(index, type, folderId) {
+// ===== Delete Media =====
+async function deleteMediaItem(sectionId, folderId, itemId) {
   if (!confirm('هل أنت متأكد من حذف هذا العنصر؟')) return;
 
-  const section = repoContent.sections?.find(s => s.id === type);
-  let items = section?.items || [];
-  if (folderId) {
-    items = items.filter(i => i.folderId === folderId);
-  }
-  const item = items[index];
-  const realIndex = section.items.findIndex(i => i.id === item.id);
+  const section = repoContent.sections?.find(s => s.id === sectionId);
+  const idx = section.items.findIndex(i => i.id === itemId);
+  if (idx === -1) return;
 
-  section.items.splice(realIndex, 1);
+  section.items.splice(idx, 1);
   await saveContentJson();
-  loadContentTab(type);
+  renderFolderPage(sectionId, folderId);
   showToast('تم الحذف', 'success');
 }
 
+// ===== Add Section Modal =====
+function openAddSectionModal() {
+  const body = document.getElementById('modal-body');
+  document.getElementById('modal-title').textContent = '➕ إضافة قسم جديد';
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-label">اسم القسم</label>
+      <input type="text" class="form-input" id="new-sec-name" placeholder="مثال: المقالات">
+    </div>
+    <div class="form-group">
+      <label class="form-label">الأيقونة (emoji)</label>
+      <input type="text" class="form-input" id="new-sec-icon" placeholder="📝" maxlength="2" value="📁">
+    </div>
+    <div class="form-group">
+      <label class="form-label">نوع المحتوى الافتراضي</label>
+      <select class="form-select" id="new-sec-type">
+        <option value="image">🖼 صور</option>
+        <option value="video">🎥 فيديو</option>
+        <option value="audio">🎧 صوت</option>
+      </select>
+    </div>
+    <button class="submit-btn" onclick="saveNewSection()">حفظ القسم</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+async function saveNewSection() {
+  const name = document.getElementById('new-sec-name').value.trim();
+  const icon = document.getElementById('new-sec-icon').value.trim() || '📁';
+  const type = document.getElementById('new-sec-type').value;
+  if (!name) { showToast('الاسم مطلوب', 'error'); return; }
+
+  const id = 'sec_' + Date.now();
+  repoContent.sections.push({ id, name, icon, folders: [], items: [], defaultType: type });
+  await saveContentJson();
+  closeModal();
+  renderSectionsPage();
+  showToast('تم إضافة القسم', 'success');
+}
+
+// ===== Add Folder Modal =====
+function openAddFolderModal(sectionId) {
+  const body = document.getElementById('modal-body');
+  document.getElementById('modal-title').textContent = '➕ إضافة مجلد جديد';
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-label">اسم المجلد</label>
+      <input type="text" class="form-input" id="new-folder-name" placeholder="مثال: حرم الإمام الحسين">
+    </div>
+    <button class="submit-btn" onclick="saveNewFolder('${sectionId}')">حفظ المجلد</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+async function saveNewFolder(sectionId) {
+  const name = document.getElementById('new-folder-name').value.trim();
+  if (!name) { showToast('الاسم مطلوب', 'error'); return; }
+
+  const section = repoContent.sections?.find(s => s.id === sectionId);
+  if (!section.folders) section.folders = [];
+  section.folders.push({ id: 'folder_' + Date.now(), name });
+  await saveContentJson();
+  closeModal();
+  renderSectionPage(sectionId);
+  showToast('تم إضافة المجلد', 'success');
+}
+
+// ===== Save Content =====
 async function saveContentJson() {
   const content = btoa(unescape(encodeURIComponent(JSON.stringify(repoContent, null, 2))));
-
   let sha = null;
   try {
     const data = await githubApi('/contents/content.json');
     sha = data.sha;
   } catch (e) {}
-
-  const body = {
-    message: 'Update content.json via admin panel',
-    content: content,
-    branch: BRANCH
-  };
+  const body = { message: 'Update via admin panel', content, branch: BRANCH };
   if (sha) body.sha = sha;
-
   await githubApi('/contents/content.json', 'PUT', body);
+}
+
+// ===== Listeners =====
+function setupListeners() {
+  document.getElementById('admin-logout').onclick = () => {
+    sessionStorage.removeItem('admin_auth');
+    sessionStorage.removeItem('github_token');
+    window.location.href = 'index.html';
+  };
+  document.getElementById('modal-close').onclick = closeModal;
+  document.getElementById('modal-overlay').onclick = (e) => {
+    if (e.target.id === 'modal-overlay') closeModal();
+  };
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('active');
-  uploadFiles = [];
 }
 
 // ===== Utilities =====
@@ -636,7 +450,6 @@ function escapeHtml(text) {
 
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
-  if (!toast) return;
   toast.textContent = message;
   toast.className = 'toast ' + type;
   toast.classList.add('active');
