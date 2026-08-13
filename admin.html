@@ -12,9 +12,21 @@
   <link rel="icon" type="image/png" href="icons/icon-72x72.png">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Admin specific styles */
     body { background: var(--primary-black); }
     .admin-main { min-height: 100vh; }
+    .folder-select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--gold); background: var(--glass-bg); color: var(--text-primary); font-family: inherit; }
+    .section-card, .folder-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; margin-bottom: 12px; }
+    .section-card .info, .folder-card .info { display: flex; align-items: center; gap: 12px; }
+    .section-card .icon { font-size: 1.5rem; }
+    .section-card .name, .folder-card .name { font-weight: 600; color: var(--text-primary); }
+    .section-card .actions, .folder-card .actions { display: flex; gap: 8px; }
+    .admin-action-btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+    .admin-action-btn.edit { background: var(--gold); color: var(--primary-black); }
+    .admin-action-btn.delete { background: #c0392b; color: white; }
+    .add-btn { width: 100%; padding: 14px; margin-bottom: 16px; background: rgba(212,175,55,0.15); border: 2px dashed var(--gold); border-radius: 12px; color: var(--gold); font-weight: 600; cursor: pointer; font-family: inherit; }
+    .add-btn:hover { background: rgba(212,175,55,0.25); }
+    .tab-section { margin-bottom: 24px; }
+    .tab-section h3 { color: var(--gold); margin-bottom: 12px; font-size: 1.1rem; }
   </style>
 </head>
 <body>
@@ -33,21 +45,53 @@
 
     <!-- Admin Nav -->
     <div class="admin-nav">
-      <button class="admin-nav-btn active" data-tab="images">🖼 الصور</button>
-      <button class="admin-nav-btn" data-tab="videos">🎥 الفيديوهات</button>
-      <button class="admin-nav-btn" data-tab="audios">🎧 المقاطع الصوتية</button>
+      <button class="admin-nav-btn active" data-tab="content">📝 المحتوى</button>
+      <button class="admin-nav-btn" data-tab="sections">⚙️ الأقسام</button>
+      <button class="admin-nav-btn" data-tab="folders">📁 المجلدات</button>
     </div>
 
-    <!-- Upload Area -->
-    <div class="admin-content">
+    <!-- Tab: Content -->
+    <div class="admin-content" id="tab-content">
+      <div style="margin-bottom:16px;">
+        <label style="color:var(--text-secondary);display:block;margin-bottom:8px;">القسم:</label>
+        <select class="folder-select" id="content-section-select">
+          <option value="images">🖼 الصور</option>
+          <option value="videos">🎥 الفيديوهات</option>
+          <option value="audios">🎧 المقاطع الصوتية</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="color:var(--text-secondary);display:block;margin-bottom:8px;">المجلد (اختياري):</label>
+        <select class="folder-select" id="content-folder-select">
+          <option value="">📂 بدون مجلد (عام)</option>
+        </select>
+      </div>
       <div class="upload-area" id="upload-area">
         <div class="upload-icon">📤</div>
         <div class="upload-text">اسحب الملفات هنا أو اضغط للاختيار</div>
         <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*" style="display:none;">
       </div>
-
-      <!-- Content Table -->
       <div id="admin-content"></div>
+    </div>
+
+    <!-- Tab: Sections -->
+    <div class="admin-content" id="tab-sections" style="display:none;">
+      <button class="add-btn" id="add-section-btn">+ إضافة قسم جديد</button>
+      <div id="sections-list"></div>
+    </div>
+
+    <!-- Tab: Folders -->
+    <div class="admin-content" id="tab-folders" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <label style="color:var(--text-secondary);display:block;margin-bottom:8px;">القسم:</label>
+        <select class="folder-select" id="folder-section-select">
+          <option value="images">🖼 الصور</option>
+          <option value="videos">🎥 الفيديوهات</option>
+          <option value="audios">🎧 المقاطع الصوتية</option>
+        </select>
+      </div>
+      <button class="add-btn" id="add-folder-btn">+ إضافة مجلد جديد</button>
+      <div id="folders-list"></div>
     </div>
   </div>
 
@@ -65,6 +109,12 @@
         <label class="form-label">الوصف</label>
         <textarea class="form-textarea" id="item-desc" placeholder="وصف المحتوى"></textarea>
       </div>
+      <div class="form-group" id="folder-select-group" style="display:none;">
+        <label class="form-label">المجلد</label>
+        <select class="folder-select" id="item-folder-select">
+          <option value="">بدون مجلد</option>
+        </select>
+      </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin:16px 0;">
         <label style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);cursor:pointer;">
           <input type="checkbox" id="item-hidden" style="width:18px;height:18px;accent-color:var(--gold);">
@@ -80,6 +130,31 @@
         </label>
       </div>
       <button class="submit-btn" id="save-item-btn" style="width:100%;">حفظ</button>
+    </div>
+  </div>
+
+  <!-- Section/Folder Modal -->
+  <div class="modal-overlay" id="manage-modal-overlay">
+    <div class="glass-panel modal-content">
+      <button class="modal-close" id="manage-modal-close">✕</button>
+      <h3 class="modal-title" id="manage-modal-title">إضافة</h3>
+      <div class="form-group">
+        <label class="form-label">الاسم</label>
+        <input type="text" class="form-input" id="manage-name" placeholder="الاسم">
+      </div>
+      <div class="form-group" id="manage-icon-group">
+        <label class="form-label">الأيقونة (emoji)</label>
+        <input type="text" class="form-input" id="manage-icon" placeholder="🖼" maxlength="2">
+      </div>
+      <div class="form-group" id="manage-type-group" style="display:none;">
+        <label class="form-label">نوع المحتوى</label>
+        <select class="folder-select" id="manage-type">
+          <option value="image">🖼 صور</option>
+          <option value="video">🎥 فيديو</option>
+          <option value="audio">🎧 صوت</option>
+        </select>
+      </div>
+      <button class="submit-btn" id="manage-save-btn" style="width:100%;">حفظ</button>
     </div>
   </div>
 
