@@ -6,10 +6,6 @@
       "icon": "🖼",
       "folders": [
         {
-          "id": "imam-ali",
-          "name": "حرم أمير المؤمنين"
-        },
-        {
           "id": "imam-hussein",
           "name": "حرم الإمام الحسين"
         },
@@ -23,7 +19,6 @@
           "id": 1,
           "title": "صورة من حرم أمير المؤمنين",
           "description": "صورة توضيحية من الحرم الشريف",
-          "folderId": "imam-ali",
           "url": "https://picsum.photos/800/600?random=1",
           "thumbnail": "https://picsum.photos/400/300?random=1",
           "type": "image"
