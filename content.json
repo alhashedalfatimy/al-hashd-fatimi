@@ -44,6 +44,14 @@
           "type": "audio"
         }
       ]
+    },
+    {
+      "id": "sec_1786620782732",
+      "name": "ياعلي",
+      "icon": "📁",
+      "folders": [],
+      "items": [],
+      "defaultType": "image"
     }
   ]
 }
