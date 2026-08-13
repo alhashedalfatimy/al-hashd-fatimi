@@ -6,10 +6,6 @@
       "icon": "🖼",
       "folders": [
         {
-          "id": "imam-hussein",
-          "name": "حرم الإمام الحسين"
-        },
-        {
           "id": "karbala",
           "name": "كربلاء المقدسة"
         }
@@ -27,7 +23,6 @@
           "id": 2,
           "title": "صورة من حرم الإمام الحسين",
           "description": "صورة توضيحية من الحرم الحسيني",
-          "folderId": "imam-hussein",
           "url": "https://picsum.photos/800/600?random=2",
           "thumbnail": "https://picsum.photos/400/300?random=2",
           "type": "image"
