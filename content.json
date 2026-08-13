@@ -4,7 +4,12 @@
       "id": "images",
       "name": "الصور",
       "icon": "🖼",
-      "folders": [],
+      "folders": [
+        {
+          "id": "folder_1786620494515",
+          "name": "صور ملحقات"
+        }
+      ],
       "items": []
     },
     {
