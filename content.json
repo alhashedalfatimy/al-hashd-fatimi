@@ -1,5 +1,86 @@
 {
-  "images": [],
-  "videos": [],
-  "audios": []
+  "sections": [
+    {
+      "id": "images",
+      "name": "الصور",
+      "icon": "🖼",
+      "folders": [
+        {
+          "id": "imam-ali",
+          "name": "حرم أمير المؤمنين"
+        },
+        {
+          "id": "imam-hussein",
+          "name": "حرم الإمام الحسين"
+        },
+        {
+          "id": "karbala",
+          "name": "كربلاء المقدسة"
+        }
+      ],
+      "items": [
+        {
+          "id": 1,
+          "title": "صورة من حرم أمير المؤمنين",
+          "description": "صورة توضيحية من الحرم الشريف",
+          "folderId": "imam-ali",
+          "url": "https://picsum.photos/800/600?random=1",
+          "thumbnail": "https://picsum.photos/400/300?random=1",
+          "type": "image"
+        },
+        {
+          "id": 2,
+          "title": "صورة من حرم الإمام الحسين",
+          "description": "صورة توضيحية من الحرم الحسيني",
+          "folderId": "imam-hussein",
+          "url": "https://picsum.photos/800/600?random=2",
+          "thumbnail": "https://picsum.photos/400/300?random=2",
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "id": "videos",
+      "name": "الفيديوهات",
+      "icon": "🎥",
+      "folders": [
+        {
+          "id": "lectures",
+          "name": "محاضرات"
+        },
+        {
+          "id": "documentaries",
+          "name": "وثائقي"
+        }
+      ],
+      "items": [
+        {
+          "id": 3,
+          "title": "فيديو توضيحي 1",
+          "description": "وصف الفيديو الأول",
+          "folderId": "lectures",
+          "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          "thumbnail": "https://picsum.photos/800/450?random=3",
+          "type": "video"
+        }
+      ]
+    },
+    {
+      "id": "audios",
+      "name": "المقاطع الصوتية",
+      "icon": "🎧",
+      "folders": [],
+      "items": [
+        {
+          "id": 4,
+          "title": "مقطع صوتي توضيحي 1",
+          "description": "وصف المقطع الصوتي الأول",
+          "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+          "cover": "https://picsum.photos/400/400?random=4",
+          "duration": "3:45",
+          "type": "audio"
+        }
+      ]
+    }
+  ]
 }
