@@ -7,14 +7,6 @@
       "folders": [],
       "items": [
         {
-          "id": 1,
-          "title": "صورة من حرم أمير المؤمنين",
-          "description": "صورة توضيحية من الحرم الشريف",
-          "url": "https://picsum.photos/800/600?random=1",
-          "thumbnail": "https://picsum.photos/400/300?random=1",
-          "type": "image"
-        },
-        {
           "id": 2,
           "title": "صورة من حرم الإمام الحسين",
           "description": "صورة توضيحية من الحرم الحسيني",
