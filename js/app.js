@@ -9,7 +9,8 @@ let audioList = [];
 let logoClickCount = 0;
 let logoPressTimer = null;
 let deferredPrompt = null;
-let allContent = { images: [], videos: [], audios: [] };
+let allContent = { sections: [] };
+let currentFolderId = null;
 
 // ===== DOM Elements =====
 const sections = {
@@ -23,10 +24,12 @@ const sections = {
 // ===== Initialize App =====
 document.addEventListener('DOMContentLoaded', async () => {
   try {
+    addFolderStyles();
     await loadContent();
     await initDB();
     setupEventListeners();
     setupPWA();
+    setupDynamicNav();
     loadHomeStats();
     showToast('مرحباً بك في الحشد الفاطمي', 'success');
   } catch (err) {
@@ -35,20 +38,142 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// ===== Add Folder Styles =====
+function addFolderStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .folder-breadcrumb {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      background: rgba(212, 175, 55, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    .folder-breadcrumb .back-btn {
+      background: var(--gold);
+      color: var(--primary-black);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+    }
+    .folder-breadcrumb .section-title,
+    .folder-breadcrumb .folder-name {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .folder-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      min-height: 160px;
+    }
+    .folder-card:hover {
+      transform: scale(1.03);
+    }
+    .folder-card .folder-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+    .folder-card .folder-name {
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    .folder-card .folder-count {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // ===== Load Content from JSON =====
 async function loadContent() {
   try {
-    // Force fresh content - NEVER use cache
     const response = await fetch('content.json', {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' }
     });
     if (!response.ok) throw new Error('Failed to load content');
     allContent = await response.json();
+    // Migrate old format
+    if (!allContent.sections) {
+      allContent = migrateOldContent(allContent);
+    }
   } catch (err) {
     console.error('Content load error:', err);
-    allContent = { images: [], videos: [], audios: [] };
+    allContent = { sections: [] };
   }
+}
+
+function migrateOldContent(old) {
+  return {
+    sections: [
+      {
+        id: 'images',
+        name: 'الصور',
+        icon: '🖼',
+        folders: [],
+        items: old.images || []
+      },
+      {
+        id: 'videos',
+        name: 'الفيديوهات',
+        icon: '🎥',
+        folders: [],
+        items: old.videos || []
+      },
+      {
+        id: 'audios',
+        name: 'المقاطع الصوتية',
+        icon: '🎧',
+        folders: [],
+        items: old.audios || []
+      }
+    ]
+  };
+}
+
+// ===== Dynamic Navigation =====
+function setupDynamicNav() {
+  const nav = document.querySelector('.bottom-nav');
+  if (!nav || !allContent.sections) return;
+
+  const existingIds = ['home', 'images', 'videos', 'audios', 'about'];
+  const newSections = allContent.sections.filter(s => !existingIds.includes(s.id));
+
+  newSections.forEach(section => {
+    const btn = document.createElement('button');
+    btn.className = 'nav-btn';
+    btn.onclick = () => navigateTo(section.id);
+    btn.innerHTML = `<span class="nav-icon">${section.icon || '📁'}</span><span class="nav-label">${section.name}</span>`;
+    nav.appendChild(btn);
+
+    const secDiv = document.createElement('section');
+    secDiv.id = 'section-' + section.id;
+    secDiv.className = 'section';
+    secDiv.innerHTML = `
+      <div class="section-header">
+        <h2>${section.name}</h2>
+      </div>
+      <div class="media-grid" id="${section.id}-grid"></div>
+    `;
+    document.querySelector('main')?.appendChild(secDiv);
+    sections[section.id] = secDiv;
+  });
 }
 
 // ===== Event Listeners =====
@@ -117,6 +242,7 @@ function handleLogoPressEnd(e) {
 
 // ===== Navigation =====
 function navigateTo(section) {
+  currentFolderId = null;
   Object.values(sections).forEach(s => s?.classList.remove('active'));
   if (sections[section]) {
     sections[section].classList.add('active');
@@ -127,6 +253,10 @@ function navigateTo(section) {
       case 'images': loadImages(); break;
       case 'videos': loadVideos(); break;
       case 'audios': loadAudios(); break;
+      default: 
+        const sec = allContent.sections?.find(s => s.id === section);
+        if (sec) loadGenericSection(section);
+        break;
     }
   }
 }
@@ -135,37 +265,179 @@ function goHome() {
   navigateTo('home');
 }
 
+function goBackToFolders(sectionId) {
+  currentFolderId = null;
+  switch(sectionId) {
+    case 'images': loadImages(); break;
+    case 'videos': loadVideos(); break;
+    case 'audios': loadAudios(); break;
+    default: loadGenericSection(sectionId); break;
+  }
+}
+
 // ===== Home Stats =====
 function loadHomeStats() {
-  document.getElementById('count-images').textContent = allContent.images?.length || 0;
-  document.getElementById('count-videos').textContent = allContent.videos?.length || 0;
-  document.getElementById('count-audios').textContent = allContent.audios?.length || 0;
+  const sections = allContent.sections || [];
+  const imagesSection = sections.find(s => s.id === 'images');
+  const videosSection = sections.find(s => s.id === 'videos');
+  const audiosSection = sections.find(s => s.id === 'audios');
+
+  document.getElementById('count-images').textContent = imagesSection?.items?.length || 0;
+  document.getElementById('count-videos').textContent = videosSection?.items?.length || 0;
+  document.getElementById('count-audios').textContent = audiosSection?.items?.length || 0;
 }
 
 // ===== Load Media Sections =====
 function loadImages() {
-  const container = document.getElementById('images-grid');
-  if (!container) return;
-  renderMediaGrid(container, allContent.images || [], 'image');
+  loadSectionItems('images', 'images-grid', 'image');
 }
 
 function loadVideos() {
-  const container = document.getElementById('videos-grid');
-  if (!container) return;
-  renderMediaGrid(container, allContent.videos || [], 'video');
+  loadSectionItems('videos', 'videos-grid', 'video');
 }
 
 function loadAudios() {
+  const section = allContent.sections?.find(s => s.id === 'audios');
+  if (!section) return;
+
   const container = document.getElementById('audios-list');
   if (!container) return;
-  audioList = allContent.audios || [];
-  renderAudioList(container, audioList);
+
+  let breadcrumb = document.getElementById('audios-breadcrumb');
+  if (!breadcrumb) {
+    breadcrumb = document.createElement('div');
+    breadcrumb.id = 'audios-breadcrumb';
+    breadcrumb.className = 'folder-breadcrumb';
+    container.parentNode.insertBefore(breadcrumb, container);
+  }
+
+  if (currentFolderId && section.folders?.find(f => f.id === currentFolderId)) {
+    const items = section.items?.filter(i => i.folderId === currentFolderId) || [];
+    const folder = section.folders.find(f => f.id === currentFolderId);
+    breadcrumb.innerHTML = `
+      <button class="back-btn" onclick="goBackToFolders('audios')">← رجوع للمجلدات</button>
+      <span class="folder-name">${escapeHtml(folder.name)}</span>
+    `;
+    breadcrumb.style.display = 'flex';
+    audioList = items;
+    renderAudioList(container, items);
+  } else {
+    if (section.folders && section.folders.length > 0) {
+      breadcrumb.innerHTML = `<span class="section-title">${escapeHtml(section.name)}</span>`;
+      breadcrumb.style.display = 'flex';
+      renderFolders(container, section.folders, section.items, 'audios');
+    } else {
+      breadcrumb.style.display = 'none';
+      audioList = section.items || [];
+      renderAudioList(container, audioList);
+    }
+  }
+}
+
+function loadGenericSection(sectionId) {
+  const section = allContent.sections?.find(s => s.id === sectionId);
+  if (!section) return;
+
+  const container = document.getElementById(sectionId + '-grid');
+  if (!container) return;
+
+  let breadcrumb = document.getElementById(sectionId + '-breadcrumb');
+  if (!breadcrumb) {
+    breadcrumb = document.createElement('div');
+    breadcrumb.id = sectionId + '-breadcrumb';
+    breadcrumb.className = 'folder-breadcrumb';
+    container.parentNode.insertBefore(breadcrumb, container);
+  }
+
+  const itemType = section.items?.[0]?.type || 'image';
+
+  if (currentFolderId && section.folders?.find(f => f.id === currentFolderId)) {
+    const items = section.items?.filter(i => i.folderId === currentFolderId) || [];
+    const folder = section.folders.find(f => f.id === currentFolderId);
+    breadcrumb.innerHTML = `
+      <button class="back-btn" onclick="goBackToFolders('${sectionId}')">← رجوع للمجلدات</button>
+      <span class="folder-name">${escapeHtml(folder.name)}</span>
+    `;
+    breadcrumb.style.display = 'flex';
+    renderMediaGrid(container, items, itemType);
+  } else {
+    if (section.folders && section.folders.length > 0) {
+      breadcrumb.innerHTML = `<span class="section-title">${escapeHtml(section.name)}</span>`;
+      breadcrumb.style.display = 'flex';
+      renderFolders(container, section.folders, section.items, sectionId);
+    } else {
+      breadcrumb.style.display = 'none';
+      renderMediaGrid(container, section.items || [], itemType);
+    }
+  }
+}
+
+function loadSectionItems(sectionId, containerId, type) {
+  const section = allContent.sections?.find(s => s.id === sectionId);
+  if (!section) return;
+
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  let breadcrumb = document.getElementById(sectionId + '-breadcrumb');
+  if (!breadcrumb) {
+    breadcrumb = document.createElement('div');
+    breadcrumb.id = sectionId + '-breadcrumb';
+    breadcrumb.className = 'folder-breadcrumb';
+    container.parentNode.insertBefore(breadcrumb, container);
+  }
+
+  if (currentFolderId && section.folders?.find(f => f.id === currentFolderId)) {
+    const items = section.items?.filter(i => i.folderId === currentFolderId) || [];
+    const folder = section.folders.find(f => f.id === currentFolderId);
+    breadcrumb.innerHTML = `
+      <button class="back-btn" onclick="goBackToFolders('${sectionId}')">← رجوع للمجلدات</button>
+      <span class="folder-name">${escapeHtml(folder.name)}</span>
+    `;
+    breadcrumb.style.display = 'flex';
+    renderMediaGrid(container, items, type);
+  } else {
+    if (section.folders && section.folders.length > 0) {
+      breadcrumb.innerHTML = `<span class="section-title">${escapeHtml(section.name)}</span>`;
+      breadcrumb.style.display = 'flex';
+      renderFolders(container, section.folders, section.items, sectionId);
+    } else {
+      breadcrumb.style.display = 'none';
+      renderMediaGrid(container, section.items || [], type);
+    }
+  }
 }
 
 // ===== Render Functions =====
+function renderFolders(container, folders, items, sectionId) {
+  if (!folders || folders.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">لا يوجد محتوى</div></div>';
+    return;
+  }
+
+  container.innerHTML = folders.map(folder => {
+    const count = items?.filter(i => i.folderId === folder.id).length || 0;
+    return `
+      <div class="glass-card folder-card fade-in" data-folder-id="${folder.id}" data-section="${sectionId}">
+        <div class="folder-icon">📁</div>
+        <div class="folder-name">${escapeHtml(folder.name)}</div>
+        <div class="folder-count">${count} عنصر</div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.folder-card').forEach(card => {
+    card.addEventListener('click', () => {
+      currentFolderId = card.dataset.folderId;
+      loadSectionItems(card.dataset.section, card.dataset.section + '-grid', 
+        card.dataset.section === 'images' ? 'image' : card.dataset.section === 'videos' ? 'video' : 'audio');
+    });
+  });
+}
+
 function renderMediaGrid(container, items, type) {
   if (!items || items.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">لا يوجد محتوى</div></div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">لا يوجد محتوى في هذا المجلد</div></div>';
     return;
   }
 
@@ -175,14 +447,14 @@ function renderMediaGrid(container, items, type) {
 
 function createMediaCard(item, type) {
   return `
-    <div class="glass-card media-card fade-in" data-id="${item.id}" data-type="${type}">
+    <div class="glass-card media-card fade-in" data-id="${item.id}" data-type="${item.type || type}">
       <img src="${item.thumbnail || item.url}" alt="${item.title}" loading="lazy">
       <div class="media-overlay">
         <div class="media-title">${escapeHtml(item.title)}</div>
         <div class="media-desc">${escapeHtml(item.description || '')}</div>
       </div>
       <div class="media-actions">
-        <button class="action-btn share-btn" data-id="${item.id}" data-type="${type}" title="مشاركة">↗</button>
+        <button class="action-btn share-btn" data-id="${item.id}" data-type="${item.type || type}" title="مشاركة">↗</button>
       </div>
     </div>
   `;
@@ -190,7 +462,7 @@ function createMediaCard(item, type) {
 
 function renderAudioList(container, items) {
   if (!items || items.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎧</div><div class="empty-state-text">لا توجد مقاطع صوتية</div></div>';
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎧</div><div class="empty-state-text">لا توجد مقاطع صوتية في هذا المجلد</div></div>';
     return;
   }
 
@@ -252,8 +524,11 @@ function attachAudioListeners(container) {
 
 // ===== Media Viewer =====
 async function openViewer(id, type) {
-  const items = type === 'image' ? allContent.images : type === 'video' ? allContent.videos : allContent.audios;
-  currentMedia = items || [];
+  const sectionId = type === 'image' ? 'images' : type === 'video' ? 'videos' : 'audios';
+  const section = allContent.sections?.find(s => s.id === sectionId);
+  const items = section?.items || [];
+
+  currentMedia = items;
   currentMediaIndex = currentMedia.findIndex(i => i.id === id);
 
   if (currentMediaIndex === -1) return;
@@ -315,7 +590,9 @@ async function shareCurrentMedia() {
 }
 
 async function shareMedia(id, type) {
-  const items = type === 'image' ? allContent.images : type === 'video' ? allContent.videos : allContent.audios;
+  const sectionId = type === 'image' ? 'images' : type === 'video' ? 'videos' : 'audios';
+  const section = allContent.sections?.find(s => s.id === sectionId);
+  const items = section?.items || [];
   const item = items.find(i => i.id === id);
   if (!item) return;
 
@@ -398,12 +675,14 @@ async function handleSearch(e) {
     return;
   }
 
-  const allItems = [
-    ...(allContent.images || []).map(i => ({...i, type: 'image'})),
-    ...(allContent.videos || []).map(i => ({...i, type: 'video'}))
-  ];
+  const allItems = [];
+  (allContent.sections || []).forEach(sec => {
+    (sec.items || []).forEach(item => {
+      allItems.push({...item, sectionType: sec.id});
+    });
+  });
 
-  const results = allItems.filter(item => 
+  const results = allItems.filter(item =>
     (item.title && item.title.includes(query)) ||
     (item.description && item.description.includes(query))
   );
@@ -522,7 +801,6 @@ function setupSwipeGestures() {
     }
   });
 }
-
 
 // ===== Admin: Reload Content =====
 async function reloadContent() {
