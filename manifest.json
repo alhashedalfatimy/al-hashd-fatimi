@@ -1,12 +1,13 @@
 {
   "name": "الحشد الفاطمي",
   "short_name": "الحشد الفاطمي",
-  "description": "تطبيق الحشد الفاطمي - صور وفيديوهات ومقاطع صوتية",
-  "start_url": "/",
+  "description": "تطبيق يضم صور وفيديوهات ومقاطع صوتية من الحرمات المقدسة",
+  "start_url": "/al-hashd-fatimi/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#1a1a1a",
+  "background_color": "#0c0c0c",
+  "theme_color": "#0c0c0c",
   "orientation": "portrait-primary",
+  "scope": "/al-hashd-fatimi/",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
@@ -36,7 +37,8 @@
     {
       "src": "icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-384x384.png",
