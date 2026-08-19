@@ -1,19 +1,18 @@
-const CACHE_NAME = 'al-hashd-fatimi-v2';
+const CACHE_NAME = 'al-hashd-fatimi-v3';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/admin.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/js/db.js',
-  '/js/admin.js',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/al-hashd-fatimi/',
+  '/al-hashd-fatimi/index.html',
+  '/al-hashd-fatimi/admin.html',
+  '/al-hashd-fatimi/css/style.css',
+  '/al-hashd-fatimi/js/app.js',
+  '/al-hashd-fatimi/js/db.js',
+  '/al-hashd-fatimi/js/admin.js',
+  '/al-hashd-fatimi/manifest.json',
+  '/al-hashd-fatimi/icons/icon-192x192.png',
+  '/al-hashd-fatimi/icons/icon-512x512.png'
 ];
 
-// NEVER cache content.json - always fetch fresh
-const NEVER_CACHE = ['/content.json'];
+const NEVER_CACHE = ['/al-hashd-fatimi/content.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -27,9 +26,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+        cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
       );
     }).then(() => self.clients.claim())
   );
@@ -39,11 +36,10 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // NEVER cache content.json - always network first
   if (NEVER_CACHE.some(path => url.pathname.includes(path))) {
     event.respondWith(
       fetch(request, { cache: 'no-store' }).catch(() => {
-        return new Response('{"images":[],"videos":[],"audios":[]}', {
+        return new Response('{"sections":[],"announcements":[]}', {
           headers: { 'Content-Type': 'application/json' }
         });
       })
@@ -76,7 +72,7 @@ self.addEventListener('fetch', (event) => {
       return caches.match(request).then((cached) => {
         if (cached) return cached;
         if (request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('/al-hashd-fatimi/index.html');
         }
         return new Response('Offline', { status: 503 });
       });
