@@ -1,24 +1,30 @@
 {
-  "announcements": [
-    {
-      "id": 1,
-      "title": "🎉 تم تحديث التطبيق",
-      "text": "تم إضافة ميزة المجلدات والتنزيل والمشاركة!",
-      "date": "2026-08-19",
-      "active": true
-    }
-  ],
+  "announcements": [],
   "sections": [
     {
       "id": "images",
       "name": "الصور",
       "icon": "🖼",
-      "folders": [],
+      "folders": [
+        {
+          "id": "imam-ali",
+          "name": "حرم أمير المؤمنين عليه السلام"
+        },
+        {
+          "id": "imam-hussein",
+          "name": "حرم الإمام الحسين عليه السلام"
+        },
+        {
+          "id": "karbala",
+          "name": "كربلاء المقدسة"
+        }
+      ],
       "items": [
         {
           "id": 1,
           "title": "صورة من حرم أمير المؤمنين",
           "description": "من الحرم الشريف في النجف الأشرف",
+          "folderId": "imam-ali",
           "url": "https://picsum.photos/800/600?random=1",
           "thumbnail": "https://picsum.photos/400/300?random=1",
           "type": "image",
@@ -30,6 +36,7 @@
           "id": 2,
           "title": "صورة من حرم الإمام الحسين",
           "description": "من الحرم الحسيني في كربلاء المقدسة",
+          "folderId": "imam-hussein",
           "url": "https://picsum.photos/800/600?random=2",
           "thumbnail": "https://picsum.photos/400/300?random=2",
           "type": "image",
@@ -43,12 +50,22 @@
       "id": "videos",
       "name": "الفيديوهات",
       "icon": "🎥",
-      "folders": [],
+      "folders": [
+        {
+          "id": "lectures",
+          "name": "محاضرات دينية"
+        },
+        {
+          "id": "documentaries",
+          "name": "وثائقي"
+        }
+      ],
       "items": [
         {
           "id": 3,
           "title": "فيديو توضيحي",
           "description": "وصف الفيديو",
+          "folderId": "lectures",
           "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
           "thumbnail": "https://picsum.photos/800/450?random=3",
           "type": "video",
@@ -66,6 +83,10 @@
         {
           "id": "latmiyat",
           "name": "لطميات"
+        },
+        {
+          "id": "quran",
+          "name": "قرآن كريم"
         }
       ],
       "items": [
