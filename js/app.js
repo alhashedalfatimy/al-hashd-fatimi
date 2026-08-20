@@ -1,652 +1,535 @@
-// ===== App State =====
-let allContent = { sections: [], announcements: [] };
-let currentSection = 'home';
-let currentFolderId = null;
-let currentSectionId = null;
-let currentMedia = [];
-let currentMediaIndex = 0;
-let audioPlayer = null;
+// ===== State =====
+let allData = { version: '3.0.0.0', sections: [], announcements: [] };
+let currentPage = 'home';
+let currentSecId = null;
+let currentFoldId = null;
+let mediaList = [];
+let mediaIdx = 0;
+let audioEl = null;
 let isPlaying = false;
-let currentAudioIndex = 0;
-let audioList = [];
-let logoClickCount = 0;
-let logoPressTimer = null;
-let deferredPrompt = null;
+let audioIdx = 0;
+let audioItems = [];
+let logoClicks = 0;
+let logoTimer = null;
+let installPrompt = null;
+let theme = localStorage.getItem('theme') || 'dark';
 
-// ===== Initialize =====
+// ===== Init =====
 document.addEventListener('DOMContentLoaded', async () => {
+  applyTheme(theme);
   try {
-    await loadContent();
-    setupEventListeners();
+    await loadData();
+    setupEvents();
     setupPWA();
     renderHome();
-    showAnnouncements();
-    showToast('مرحباً بك في الحشد الفاطمي', 'success');
-  } catch (err) {
-    console.error('Init error:', err);
-    showToast('خطأ في تحميل التطبيق', 'error');
+    showAnnouncement();
+  } catch (e) {
+    console.error(e);
+    toast('خطأ في التحميل', 'bad');
   }
 });
 
-// ===== Load Content =====
-async function loadContent() {
-  try {
-    const resp = await fetch('content.json?nocache=' + Date.now(), { cache: 'no-store' });
-    if (resp.ok) {
-      allContent = await resp.json();
-      if (!allContent.sections) allContent = migrateOldContent(allContent);
-    }
-  } catch (err) {
-    console.error('Content load error:', err);
-    allContent = { sections: [], announcements: [] };
-  }
+// ===== Theme =====
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
 }
 
-function migrateOldContent(old) {
-  return {
-    sections: [
-      { id: 'images', name: 'الصور', icon: '🖼', folders: [], items: old.images || [] },
-      { id: 'videos', name: 'الفيديوهات', icon: '🎥', folders: [], items: old.videos || [] },
-      { id: 'audios', name: 'المقاطع الصوتية', icon: '🎧', folders: [], items: old.audios || [] }
-    ],
-    announcements: []
-  };
+function toggleTheme() {
+  theme = theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', theme);
+  applyTheme(theme);
+}
+
+// ===== Load Data =====
+async function loadData() {
+  try {
+    const r = await fetch('content.json?nocache=' + Date.now(), { cache: 'no-store' });
+    if (r.ok) {
+      allData = await r.json();
+      if (!allData.sections) allData = { version: '3.0.0.0', sections: [], announcements: [] };
+    }
+  } catch (e) {
+    allData = { version: '3.0.0.0', sections: [], announcements: [] };
+  }
 }
 
 // ===== Render Home =====
 function renderHome() {
-  const grid = document.getElementById('categories-grid');
-  const sections = allContent.sections || [];
+  const container = document.getElementById('home-content');
+  const sections = allData.sections || [];
 
   let html = '';
   sections.forEach(sec => {
-    const count = sec.items?.length || 0;
+    const folders = sec.folders || [];
+    const items = sec.items || [];
+    const total = items.length;
+
     html += `
-      <div class="category-card" onclick="navigateToSection('${sec.id}')">
-        <div class="category-icon">${sec.icon || '📁'}</div>
-        <div class="category-name">${escapeHtml(sec.name)}</div>
-        <div class="category-count">${count} عنصر</div>
-      </div>
+      <div class="section-group">
+        <div class="section-header-row">
+          <div class="section-label">
+            <span class="sec-icon">${sec.icon || '📁'}</span>
+            <span>${escapeHtml(sec.name)}</span>
+          </div>
+          <span class="section-count">${total}</span>
+        </div>
+        <div class="folders-scroll">
     `;
+
+    if (folders.length === 0) {
+      html += `
+        <div class="folder-chip empty" onclick="toast('لا توجد مجلدات في هذا القسم', 'bad')">
+          <div class="f-icon">📂</div>
+          <div class="f-name">فارغ</div>
+        </div>
+      `;
+    } else {
+      folders.forEach(f => {
+        const count = items.filter(i => i.folderId === f.id).length;
+        html += `
+          <div class="folder-chip" onclick="openFolder('${sec.id}', '${f.id}')">
+            <div class="f-icon">📁</div>
+            <div class="f-name">${escapeHtml(f.name)}</div>
+            <div class="f-count">${count} عنصر</div>
+          </div>
+        `;
+      });
+    }
+
+    html += `</div></div>`;
   });
 
-  grid.innerHTML = html;
-  updateNavCounts();
-}
-
-function updateNavCounts() {
-  // Update any visible counts
-}
-
-// ===== Announcements =====
-function showAnnouncements() {
-  const bar = document.getElementById('announcements-bar');
-  const text = document.getElementById('announcement-text');
-  const announcements = (allContent.announcements || []).filter(a => a.active);
-
-  if (announcements.length === 0) {
-    bar.classList.remove('active');
-    return;
+  if (sections.length === 0) {
+    html = `
+      <div class="empty-state">
+        <div class="e-icon">📂</div>
+        <div class="e-text">لا توجد أقسام بعد</div>
+      </div>
+    `;
   }
 
-  const ann = announcements[0];
-  text.querySelector('span:last-child').textContent = ann.title + (ann.text ? ' - ' + ann.text : '');
+  container.innerHTML = html;
+}
+
+// ===== Announcement =====
+function showAnnouncement() {
+  const bar = document.getElementById('announcement-bar');
+  const text = document.getElementById('ann-text');
+  const anns = (allData.announcements || []).filter(a => a.active);
+
+  if (anns.length === 0) { bar.classList.remove('active'); return; }
+  text.textContent = anns[0].title + (anns[0].text ? ' — ' + anns[0].text : '');
   bar.classList.add('active');
 }
 
-// ===== Navigation =====
-function navigateTo(section) {
-  document.querySelectorAll('.section-container').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+function closeAnnouncement() {
+  document.getElementById('announcement-bar').classList.remove('active');
+}
 
-  const target = document.getElementById('section-' + section);
+// ===== Navigation =====
+function navigateTo(page) {
+  currentPage = page;
+  document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+
+  const target = document.getElementById('page-' + page);
   if (target) target.classList.add('active');
 
-  const navBtn = document.querySelector(`.nav-btn[data-section="${section}"]`);
-  if (navBtn) navBtn.classList.add('active');
+  const btn = document.querySelector(`.bottom-nav button[data-page="${page}"]`);
+  if (btn) btn.classList.add('active');
 
-  currentSection = section;
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  if (section === 'home') {
-    renderHome();
-  }
 }
 
 function goHome() {
-  currentFolderId = null;
-  currentSectionId = null;
+  currentSecId = null;
+  currentFoldId = null;
   navigateTo('home');
+  renderHome();
 }
 
-function navigateToSection(sectionId) {
-  currentSectionId = sectionId;
-  currentFolderId = null;
+function openFolder(secId, foldId) {
+  currentSecId = secId;
+  currentFoldId = foldId;
 
-  const section = allContent.sections?.find(s => s.id === sectionId);
-  if (!section) return;
+  const sec = allData.sections?.find(s => s.id === secId);
+  const fold = sec?.folders?.find(f => f.id === foldId);
+  if (!sec || !fold) return;
 
-  // Check if section has folders
-  const folders = section.folders || [];
-
-  // Create or get section container
-  let container = document.getElementById('section-' + sectionId);
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'section-' + sectionId;
-    container.className = 'section-container';
-    document.getElementById('dynamic-sections').appendChild(container);
+  let page = document.getElementById('page-' + secId + '-' + foldId);
+  if (!page) {
+    page = document.createElement('div');
+    page.id = 'page-' + secId + '-' + foldId;
+    page.className = 'page-container';
+    document.getElementById('dynamic-pages').appendChild(page);
   }
 
-  document.querySelectorAll('.section-container').forEach(s => s.classList.remove('active'));
-  container.classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
+  page.classList.add('active');
+  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
 
-  if (folders.length > 0) {
-    renderFoldersView(container, section);
-  } else {
-    renderItemsView(container, section, null);
-  }
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function navigateToFolder(sectionId, folderId) {
-  currentSectionId = sectionId;
-  currentFolderId = folderId;
-
-  const section = allContent.sections?.find(s => s.id === sectionId);
-  if (!section) return;
-
-  let container = document.getElementById('section-' + sectionId);
-  if (!container) return;
-
-  renderItemsView(container, section, folderId);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// ===== Render Folders View =====
-function renderFoldersView(container, section) {
-  const folders = section.folders || [];
-  const items = section.items || [];
+  const items = (sec.items || []).filter(i => i.folderId === foldId && i.visibility !== 'private');
 
   let html = `
     <div class="breadcrumb">
-      <button class="back-btn" onclick="goHome()">← رجوع للرئيسية</button>
-    </div>
-    <div class="section-title-box">
-      <h2>${section.icon || '📁'} ${escapeHtml(section.name)}</h2>
-      <div class="section-line"></div>
+      <button class="back-btn" onclick="goHome()">← رجوع</button>
+      <span class="crumb">${escapeHtml(fold.name)}</span>
     </div>
   `;
 
-  if (folders.length === 0) {
-    html += `<div class="empty-state"><div class="icon">📁</div><div class="text">لا توجد مجلدات</div></div>`;
-  } else {
-    folders.forEach(folder => {
-      const count = items.filter(i => i.folderId === folder.id).length;
-      html += `
-        <div class="folder-card" onclick="navigateToFolder('${section.id}', '${folder.id}')">
-          <div class="folder-icon-box">📁</div>
-          <div class="folder-info">
-            <div class="folder-name">${escapeHtml(folder.name)}</div>
-            <div class="folder-meta">${count} عنصر</div>
+  if (sec.id === 'audios') {
+    html += `<div class="audio-list">`;
+    if (items.length === 0) {
+      html += `<div class="empty-state"><div class="e-icon">🎧</div><div class="e-text">لا توجد مقاطع</div></div>`;
+    } else {
+      items.forEach((item, idx) => {
+        html += `
+          <div class="audio-row" data-idx="${idx}">
+            <img src="${item.cover || 'https://via.placeholder.com/48'}" alt="" onerror="this.style.display='none'">
+            <div class="a-info">
+              <div class="a-title">${escapeHtml(item.title)}</div>
+              <div class="a-desc">${escapeHtml(item.description || '')}</div>
+            </div>
+            <button class="a-play">▶</button>
           </div>
-          <div class="folder-arrow">‹</div>
-        </div>
-      `;
-    });
-  }
-
-  container.innerHTML = html;
-}
-
-// ===== Render Items View =====
-function renderItemsView(container, section, folderId) {
-  const folders = section.folders || [];
-  const allItems = section.items || [];
-  const folder = folderId ? folders.find(f => f.id === folderId) : null;
-  const folderName = folder ? folder.name : section.name;
-  const items = folderId ? allItems.filter(i => i.folderId === folderId) : allItems;
-
-  // Filter public items for normal view
-  const publicItems = items.filter(i => i.visibility !== 'private');
-
-  let html = `
-    <div class="breadcrumb">
-      <button class="back-btn" onclick="${folderId ? `navigateToSection('${section.id}')` : 'goHome()'}">← ${folderId ? 'رجوع للمجلدات' : 'رجوع للرئيسية'}</button>
-    </div>
-    <div class="section-title-box">
-      <h2>${folder ? '📁' : (section.icon || '📁')} ${escapeHtml(folderName)}</h2>
-      <div class="section-line"></div>
-    </div>
-  `;
-
-  if (section.id === 'audios') {
-    // Audio list view
-    html += `<div class="audio-list" id="audio-list-${section.id}-${folderId || 'all'}">`;
-    if (publicItems.length === 0) {
-      html += `<div class="empty-state"><div class="icon">🎧</div><div class="text">لا توجد مقاطع صوتية</div></div>`;
-    } else {
-      publicItems.forEach((item, idx) => {
-        html += createAudioCard(item, idx);
+        `;
       });
     }
     html += `</div>`;
   } else {
-    // Grid view for images/videos
-    html += `<div class="media-grid" id="media-grid-${section.id}-${folderId || 'all'}">`;
-    if (publicItems.length === 0) {
-      html += `<div class="empty-state"><div class="icon">📂</div><div class="text">لا يوجد محتوى</div></div>`;
+    html += `<div class="media-grid">`;
+    if (items.length === 0) {
+      html += `<div class="empty-state"><div class="e-icon">📂</div><div class="e-text">لا يوجد محتوى</div></div>`;
     } else {
-      publicItems.forEach(item => {
-        html += createMediaCard(item);
+      items.forEach(item => {
+        html += `
+          <div class="media-card" data-id="${item.id}" style="position:relative;">
+            <img src="${item.thumbnail || item.url}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300/1a1a1a/666?text=${encodeURIComponent(item.title)}'">
+            <div class="m-info">
+              <div class="m-title">${escapeHtml(item.title)}</div>
+              <div class="m-desc">${escapeHtml(item.description || '')}</div>
+            </div>
+          </div>
+        `;
       });
     }
     html += `</div>`;
   }
 
-  container.innerHTML = html;
+  page.innerHTML = html;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Attach listeners
-  if (section.id === 'audios') {
-    attachAudioListeners(container, publicItems);
+  if (sec.id === 'audios') {
+    audioItems = items;
+    page.querySelectorAll('.audio-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.a-play')) return;
+        playAudio(parseInt(row.dataset.idx));
+      });
+    });
+    page.querySelectorAll('.a-play').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playAudio(parseInt(btn.closest('.audio-row').dataset.idx));
+      });
+    });
   } else {
-    attachMediaListeners(container, publicItems);
+    page.querySelectorAll('.media-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = parseInt(card.dataset.id);
+        openViewer(id, items);
+      });
+    });
   }
 }
 
-function createMediaCard(item) {
-  const isPrivate = item.visibility === 'private';
-  return `
-    <div class="media-card" data-id="${item.id}" data-type="${item.type}">
-      <img src="${item.thumbnail || item.url}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300/1a1a1a/d4af37?text=${encodeURIComponent(item.title)}'">
-      <div class="media-info">
-        <div class="media-title">${escapeHtml(item.title)}</div>
-        <div class="media-desc">${escapeHtml(item.description || '')}</div>
-      </div>
-      ${isPrivate ? '<div class="private-badge">🔒 خاص</div>' : ''}
-    </div>
-  `;
-}
-
-function createAudioCard(item, index) {
-  return `
-    <div class="audio-item" data-id="${item.id}" data-index="${index}">
-      <img src="${item.cover || item.thumbnail || 'https://via.placeholder.com/60/1a1a1a/d4af37?text=🎧'}" alt="" class="audio-cover" onerror="this.style.display='none'">
-      <div class="audio-info">
-        <div class="audio-title">${escapeHtml(item.title)}</div>
-        <div class="audio-desc">${escapeHtml(item.description || '')}</div>
-      </div>
-      <button class="audio-play-btn">▶</button>
-    </div>
-  `;
-}
-
-function attachMediaListeners(container, items) {
-  container.querySelectorAll('.media-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const id = parseInt(card.dataset.id);
-      const type = card.dataset.type;
-      openViewer(id, type, items);
-    });
-  });
-}
-
-function attachAudioListeners(container, items) {
-  audioList = items;
-  container.querySelectorAll('.audio-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('.audio-play-btn')) return;
-      const index = parseInt(item.dataset.index);
-      playAudioAt(index);
-    });
-  });
-  container.querySelectorAll('.audio-play-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const index = parseInt(btn.closest('.audio-item').dataset.index);
-      playAudioAt(index);
-    });
-  });
-}
-
-// ===== Media Viewer =====
-function openViewer(id, type, items) {
-  currentMedia = items || [];
-  currentMediaIndex = currentMedia.findIndex(i => i.id === id);
-  if (currentMediaIndex === -1) return;
-
+// ===== Viewer =====
+function openViewer(id, items) {
+  mediaList = items;
+  mediaIdx = items.findIndex(i => i.id === id);
+  if (mediaIdx === -1) return;
   updateViewer();
-  document.getElementById('media-viewer').classList.add('active');
+  document.getElementById('viewer-overlay').classList.add('active');
   document.body.style.overflow = 'hidden';
 }
 
 function updateViewer() {
-  const item = currentMedia[currentMediaIndex];
-  const content = document.getElementById('viewer-content');
-  const title = document.getElementById('viewer-title');
-  const actions = document.getElementById('viewer-actions');
+  const item = mediaList[mediaIdx];
+  const content = document.getElementById('v-content');
+  const title = document.getElementById('v-title');
+  const actions = document.getElementById('v-actions');
 
   title.textContent = item.title;
 
-  const isVideo = item.type === 'video';
-  const isAudio = item.type === 'audio';
-
-  if (isVideo) {
-    content.innerHTML = `<video src="${item.url}" controls autoplay style="max-width:100%;max-height:70vh;border-radius:12px;"></video>`;
+  if (item.type === 'video') {
+    content.innerHTML = `<video src="${item.url}" controls autoplay style="max-width:100%;max-height:65vh;border-radius:12px;"></video>`;
   } else {
-    content.innerHTML = `<img src="${item.url}" alt="${escapeHtml(item.title)}" style="max-width:100%;max-height:70vh;border-radius:12px;">`;
+    content.innerHTML = `<img src="${item.url}" alt="" style="max-width:100%;max-height:65vh;border-radius:12px;">`;
   }
 
-  // Build actions based on permissions
-  let actionsHtml = '';
+  let btns = '';
   if (item.allowDownload !== false) {
-    actionsHtml += `<button class="viewer-action-btn gold" onclick="downloadCurrentMedia()"><span>⬇️</span> تنزيل</button>`;
+    btns += `<button class="primary" onclick="dlCurrent()">⬇️ تنزيل</button>`;
   }
   if (item.allowShare !== false) {
-    actionsHtml += `<button class="viewer-action-btn" onclick="shareCurrentMedia()"><span>🔗</span> مشاركة</button>`;
+    btns += `<button onclick="shareCurrent()">🔗 مشاركة</button>`;
   }
-  actions.innerHTML = actionsHtml;
+  actions.innerHTML = btns;
 }
 
 function closeViewer() {
-  document.getElementById('media-viewer').classList.remove('active');
+  document.getElementById('viewer-overlay').classList.remove('active');
   document.body.style.overflow = '';
-  const video = document.querySelector('#viewer-content video');
-  if (video) video.pause();
+  const v = document.querySelector('#v-content video');
+  if (v) v.pause();
 }
 
-function navigateViewer(direction) {
-  currentMediaIndex += direction;
-  if (currentMediaIndex < 0) currentMediaIndex = currentMedia.length - 1;
-  if (currentMediaIndex >= currentMedia.length) currentMediaIndex = 0;
-  updateViewer();
-}
-
-async function downloadCurrentMedia() {
-  const item = currentMedia[currentMediaIndex];
-  if (item.allowDownload === false) {
-    showToast('التنزيل غير متاح لهذا المحتوى', 'error');
-    return;
-  }
-
+async function dlCurrent() {
+  const item = mediaList[mediaIdx];
+  if (item.allowDownload === false) { toast('التنزيل معطل', 'bad'); return; }
   try {
-    showToast('جاري التنزيل...', 'info');
-    const resp = await fetch(item.url);
-    const blob = await resp.blob();
+    toast('جاري التنزيل...', 'ok');
+    const r = await fetch(item.url);
+    const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     const ext = item.type === 'video' ? '.mp4' : item.type === 'audio' ? '.mp3' : '.jpg';
-    a.download = (item.title || 'download') + ext;
-    document.body.appendChild(a);
+    a.download = (item.title || 'file') + ext;
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('تم التنزيل بنجاح', 'success');
-  } catch (err) {
-    showToast('خطأ في التنزيل', 'error');
-  }
+    toast('تم التنزيل', 'ok');
+  } catch (e) { toast('فشل التنزيل', 'bad'); }
 }
 
-async function shareCurrentMedia() {
-  const item = currentMedia[currentMediaIndex];
-  if (item.allowShare === false) {
-    showToast('المشاركة غير متاحة لهذا المحتوى', 'error');
-    return;
-  }
-
+async function shareCurrent() {
+  const item = mediaList[mediaIdx];
+  if (item.allowShare === false) { toast('المشاركة معطلة', 'bad'); return; }
   if (navigator.share) {
-    try {
-      await navigator.share({ title: item.title, text: item.description, url: item.url });
-    } catch (e) {}
+    try { await navigator.share({ title: item.title, text: item.description, url: item.url }); } catch (e) {}
   } else {
     await navigator.clipboard.writeText(item.url);
-    showToast('تم نسخ الرابط', 'success');
+    toast('تم نسخ الرابط', 'ok');
   }
 }
 
 // ===== Audio Player =====
-function playAudioAt(index) {
-  if (!audioList.length) return;
-  currentAudioIndex = index;
-  const item = audioList[index];
+function playAudio(idx) {
+  if (!audioItems.length) return;
+  audioIdx = idx;
+  const item = audioItems[idx];
 
-  if (!audioPlayer) {
-    audioPlayer = new Audio();
-    audioPlayer.addEventListener('timeupdate', updatePlayerProgress);
-    audioPlayer.addEventListener('ended', playNextAudio);
+  if (!audioEl) {
+    audioEl = new Audio();
+    audioEl.addEventListener('timeupdate', () => {
+      if (!audioEl.duration) return;
+      const pct = (audioEl.currentTime / audioEl.duration) * 100;
+      document.getElementById('p-progress-bar').style.width = pct + '%';
+    });
+    audioEl.addEventListener('ended', () => playAudio((audioIdx + 1) % audioItems.length));
   }
 
-  audioPlayer.src = item.url;
-  audioPlayer.play().catch(() => {});
+  audioEl.src = item.url;
+  audioEl.play().catch(() => {});
   isPlaying = true;
 
-  document.getElementById('player-cover').src = item.cover || item.thumbnail || 'https://via.placeholder.com/60';
-  document.getElementById('player-title').textContent = item.title;
-  document.getElementById('player-play').textContent = '⏸';
-  document.getElementById('audio-player-bar').classList.add('active');
+  document.getElementById('p-cover').src = item.cover || 'https://via.placeholder.com/40';
+  document.getElementById('p-title').textContent = item.title;
+  document.getElementById('p-play').textContent = '⏸';
+  document.getElementById('player-bar').classList.add('active');
 }
 
-function toggleAudioPlay() {
-  if (!audioPlayer) return;
-  if (isPlaying) {
-    audioPlayer.pause();
-    document.getElementById('player-play').textContent = '▶';
-  } else {
-    audioPlayer.play().catch(() => {});
-    document.getElementById('player-play').textContent = '⏸';
-  }
+function togglePlay() {
+  if (!audioEl) return;
+  if (isPlaying) { audioEl.pause(); document.getElementById('p-play').textContent = '▶'; }
+  else { audioEl.play().catch(() => {}); document.getElementById('p-play').textContent = '⏸'; }
   isPlaying = !isPlaying;
 }
 
-function playNextAudio() {
-  if (!audioList.length) return;
-  currentAudioIndex = (currentAudioIndex + 1) % audioList.length;
-  playAudioAt(currentAudioIndex);
+function nextAudio() {
+  if (!audioItems.length) return;
+  playAudio((audioIdx + 1) % audioItems.length);
 }
 
-function playPrevAudio() {
-  if (!audioList.length) return;
-  currentAudioIndex = (currentAudioIndex - 1 + audioList.length) % audioList.length;
-  playAudioAt(currentAudioIndex);
-}
-
-function updatePlayerProgress() {
-  if (!audioPlayer || !audioPlayer.duration) return;
-  const pct = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-  document.getElementById('player-progress-bar').style.width = pct + '%';
+function prevAudio() {
+  if (!audioItems.length) return;
+  playAudio((audioIdx - 1 + audioItems.length) % audioItems.length);
 }
 
 function seekAudio(e) {
-  if (!audioPlayer || !audioPlayer.duration) return;
+  if (!audioEl || !audioEl.duration) return;
   const rect = e.currentTarget.getBoundingClientRect();
   const pct = (e.clientX - rect.left) / rect.width;
-  audioPlayer.currentTime = pct * audioPlayer.duration;
+  audioEl.currentTime = pct * audioEl.duration;
 }
 
 // ===== Search =====
-function handleSearch(e) {
-  const query = e.target.value.trim();
-  if (!query) {
-    if (currentSection !== 'home') goHome();
-    return;
-  }
+function doSearch(e) {
+  const q = e.target.value.trim();
+  if (!q) { goHome(); return; }
 
-  const allItems = [];
-  (allContent.sections || []).forEach(sec => {
+  const results = [];
+  (allData.sections || []).forEach(sec => {
     (sec.items || []).forEach(item => {
-      if (item.visibility !== 'private') {
-        allItems.push({ ...item, sectionName: sec.name });
+      if (item.visibility !== 'private' && ((item.title && item.title.includes(q)) || (item.description && item.description.includes(q)))) {
+        results.push({ ...item, secName: sec.name });
       }
     });
   });
 
-  const results = allItems.filter(item =>
-    (item.title && item.title.includes(query)) ||
-    (item.description && item.description.includes(query))
-  );
-
-  // Show search results in a temp view
-  let container = document.getElementById('section-search-results');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'section-search-results';
-    container.className = 'section-container';
-    document.getElementById('dynamic-sections').appendChild(container);
+  let page = document.getElementById('page-search');
+  if (!page) {
+    page = document.createElement('div');
+    page.id = 'page-search';
+    page.className = 'page-container';
+    document.getElementById('dynamic-pages').appendChild(page);
   }
 
-  document.querySelectorAll('.section-container').forEach(s => s.classList.remove('active'));
-  container.classList.add('active');
+  document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
+  page.classList.add('active');
+  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
 
   let html = `
     <div class="breadcrumb">
-      <button class="back-btn" onclick="goHome()">← رجوع للرئيسية</button>
-    </div>
-    <div class="section-title-box">
-      <h2>🔍 نتائج البحث</h2>
-      <div class="section-line"></div>
+      <button class="back-btn" onclick="goHome()">← رجوع</button>
+      <span class="crumb">نتائج البحث</span>
     </div>
   `;
 
   if (results.length === 0) {
-    html += `<div class="empty-state"><div class="icon">🔍</div><div class="text">لا توجد نتائج</div></div>`;
+    html += `<div class="empty-state"><div class="e-icon">🔍</div><div class="e-text">لا توجد نتائج</div></div>`;
   } else {
     html += `<div class="media-grid">`;
     results.forEach(item => {
-      html += createMediaCard(item);
+      html += `
+        <div class="media-card" data-id="${item.id}" style="position:relative;">
+          <img src="${item.thumbnail || item.url}" alt="" loading="lazy" onerror="this.style.display='none'">
+          <div class="m-info">
+            <div class="m-title">${escapeHtml(item.title)}</div>
+            <div class="m-desc">${escapeHtml(item.secName)}</div>
+          </div>
+        </div>
+      `;
     });
     html += `</div>`;
   }
 
-  container.innerHTML = html;
-  attachMediaListeners(container, results);
+  page.innerHTML = html;
+  page.querySelectorAll('.media-card').forEach(card => {
+    card.addEventListener('click', () => openViewer(parseInt(card.dataset.id), results));
+  });
 }
 
-// ===== Admin Login =====
-function handleLogoClick() {
-  logoClickCount++;
-  if (logoClickCount >= 5) {
-    logoClickCount = 0;
+// ===== Admin =====
+function onLogoClick() {
+  logoClicks++;
+  if (logoClicks >= 5) {
+    logoClicks = 0;
     document.getElementById('admin-overlay').classList.add('active');
-    document.getElementById('admin-username').focus();
+    document.getElementById('admin-user').focus();
   }
-  setTimeout(() => { logoClickCount = 0; }, 2000);
+  setTimeout(() => { logoClicks = 0; }, 2000);
 }
 
-function handleLogoPressStart(e) {
+function onLogoPressStart(e) {
   e.preventDefault();
-  logoPressTimer = setTimeout(() => {
+  logoTimer = setTimeout(() => {
     document.getElementById('admin-overlay').classList.add('active');
-    document.getElementById('admin-username').focus();
+    document.getElementById('admin-user').focus();
   }, 8000);
 }
 
-function handleLogoPressEnd(e) {
+function onLogoPressEnd(e) {
   e.preventDefault();
-  if (logoPressTimer) { clearTimeout(logoPressTimer); logoPressTimer = null; }
+  if (logoTimer) { clearTimeout(logoTimer); logoTimer = null; }
 }
 
-function handleAdminLogin() {
-  const username = document.getElementById('admin-username').value.trim();
-  const password = document.getElementById('admin-password').value;
-
-  if (username === 'admin' && password === 'admin123') {
+function adminLogin() {
+  const u = document.getElementById('admin-user').value.trim();
+  const p = document.getElementById('admin-pass').value;
+  if (u === 'admin' && p === 'admin123') {
     sessionStorage.setItem('admin_auth', 'true');
     window.location.href = 'admin.html';
   } else {
-    document.getElementById('admin-error').classList.add('active');
-    document.getElementById('admin-password').value = '';
+    document.getElementById('admin-err').classList.add('active');
+    document.getElementById('admin-pass').value = '';
   }
 }
 
 // ===== PWA =====
 function setupPWA() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.error('SW error:', err));
+    navigator.serviceWorker.register('sw.js').catch(e => console.error(e));
   }
-
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
-    deferredPrompt = e;
+    installPrompt = e;
     document.getElementById('install-btn').classList.add('active');
   });
-
   window.addEventListener('appinstalled', () => {
-    deferredPrompt = null;
+    installPrompt = null;
     document.getElementById('install-btn').classList.remove('active');
-    showToast('تم تثبيت التطبيق بنجاح', 'success');
+    toast('تم التثبيت', 'ok');
   });
 }
 
-async function installPWA() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const result = await deferredPrompt.userChoice;
-  if (result.outcome === 'accepted') {
-    showToast('تم تثبيت التطبيق', 'success');
-  }
-  deferredPrompt = null;
+async function installApp() {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  const r = await installPrompt.userChoice;
+  if (r.outcome === 'accepted') toast('تم التثبيت', 'ok');
+  installPrompt = null;
   document.getElementById('install-btn').classList.remove('active');
 }
 
-// ===== Event Listeners =====
-function setupEventListeners() {
+// ===== Events =====
+function setupEvents() {
   const logo = document.getElementById('app-logo');
-  if (logo) {
-    logo.addEventListener('click', handleLogoClick);
-    logo.addEventListener('touchstart', handleLogoPressStart);
-    logo.addEventListener('touchend', handleLogoPressEnd);
-    logo.addEventListener('mousedown', handleLogoPressStart);
-    logo.addEventListener('mouseup', handleLogoPressEnd);
-    logo.addEventListener('mouseleave', handleLogoPressEnd);
-  }
+  logo.addEventListener('click', onLogoClick);
+  logo.addEventListener('touchstart', onLogoPressStart);
+  logo.addEventListener('touchend', onLogoPressEnd);
+  logo.addEventListener('mousedown', onLogoPressStart);
+  logo.addEventListener('mouseup', onLogoPressEnd);
+  logo.addEventListener('mouseleave', onLogoPressEnd);
 
-  document.getElementById('search-input').addEventListener('input', debounce(handleSearch, 300));
-  document.getElementById('viewer-close').addEventListener('click', closeViewer);
-  document.getElementById('viewer-prev').addEventListener('click', () => navigateViewer(-1));
-  document.getElementById('viewer-next').addEventListener('click', () => navigateViewer(1));
-  document.getElementById('player-play').addEventListener('click', toggleAudioPlay);
-  document.getElementById('player-prev').addEventListener('click', playPrevAudio);
-  document.getElementById('player-next').addEventListener('click', playNextAudio);
-  document.getElementById('player-progress').addEventListener('click', seekAudio);
-  document.getElementById('admin-login-btn').addEventListener('click', handleAdminLogin);
+  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+  document.getElementById('search-input').addEventListener('input', debounce(doSearch, 300));
+  document.getElementById('v-close').addEventListener('click', closeViewer);
+  document.getElementById('p-play').addEventListener('click', togglePlay);
+  document.getElementById('p-prev').addEventListener('click', prevAudio);
+  document.getElementById('p-next').addEventListener('click', nextAudio);
+  document.getElementById('p-progress').addEventListener('click', seekAudio);
+  document.getElementById('admin-login').addEventListener('click', adminLogin);
+  document.getElementById('install-btn').addEventListener('click', installApp);
+
   document.getElementById('admin-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'admin-overlay') document.getElementById('admin-overlay').classList.remove('active');
   });
-  document.getElementById('install-btn').addEventListener('click', installPWA);
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeViewer();
-    const viewer = document.getElementById('media-viewer');
-    if (viewer.classList.contains('active')) {
-      if (e.key === 'ArrowLeft') navigateViewer(1);
-      if (e.key === 'ArrowRight') navigateViewer(-1);
-    }
   });
 }
 
-// ===== Utilities =====
-function debounce(func, wait) {
-  let timeout;
-  return function(...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), wait);
-  };
+// ===== Utils =====
+function debounce(fn, ms) {
+  let t;
+  return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); };
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+function escapeHtml(t) {
+  if (!t) return '';
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
 }
 
-function showToast(message, type = 'info') {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.className = 'toast ' + type;
-  toast.classList.add('active');
-  setTimeout(() => toast.classList.remove('active'), 3000);
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  el.classList.add('active');
+  setTimeout(() => el.classList.remove('active'), 2500);
 }
