@@ -1,712 +1,420 @@
-// ===== Admin State =====
-let repoContent = { sections: [], announcements: [] };
-let navStack = [];
-let currentUploadFile = null;
-
+let data = { version: '3.0.0.0', sections: [], announcements: [] };
+let stack = [];
+let upFile = null;
 const REPO = 'alhashedalfatimy/al-hashd-fatimi';
 const BRANCH = 'main';
 
 function getToken() {
-  return localStorage.getItem('github_token') || sessionStorage.getItem('github_token') || '';
+  return localStorage.getItem('gh_token') || sessionStorage.getItem('gh_token') || '';
 }
-function setToken(token) {
-  localStorage.setItem('github_token', token);
-  sessionStorage.setItem('github_token', token);
+function setToken(t) {
+  localStorage.setItem('gh_token', t);
+  sessionStorage.setItem('gh_token', t);
 }
 
-// ===== Initialize =====
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!sessionStorage.getItem('admin_auth')) {
-    window.location.href = 'index.html';
-    return;
+  if (!sessionStorage.getItem('admin_auth')) { location.href = 'index.html'; return; }
+  let t = getToken();
+  if (!t) {
+    t = prompt('توكن GitHub:');
+    if (!t) { toast('التوكن مطلوب', 'bad'); return; }
+    setToken(t);
   }
-
-  let token = getToken();
-  if (!token) {
-    token = prompt('أدخل توكن GitHub (مرة واحدة فقط):\nhttps://github.com/settings/tokens');
-    if (!token) { showToast('يجب إدخال التوكن', 'error'); return; }
-    setToken(token);
-  }
-
-  try {
-    await loadContent();
-    setupListeners();
-    renderSectionsPage();
-  } catch (err) {
-    console.error(err);
-    showToast('خطأ في التحميل', 'error');
-  }
+  try { await load(); setup(); renderSections(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
 });
 
-// ===== Load Content =====
-async function loadContent() {
+async function load() {
   try {
-    const resp = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/content.json?nocache=' + Date.now());
-    if (resp.ok) {
-      repoContent = await resp.json();
-      if (!repoContent.sections) repoContent = migrateOldContent(repoContent);
-      if (!repoContent.announcements) repoContent.announcements = [];
+    const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/content.json?n=' + Date.now());
+    if (r.ok) {
+      data = await r.json();
+      if (!data.sections) data = { version: '3.0.0.0', sections: [], announcements: [] };
+      if (!data.announcements) data.announcements = [];
     }
-  } catch (err) {
-    repoContent = { sections: [], announcements: [] };
-  }
+  } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [] }; }
 }
 
-function migrateOldContent(old) {
-  return {
-    sections: [
-      { id: 'images', name: 'الصور', icon: '🖼', folders: [], items: old.images || [] },
-      { id: 'videos', name: 'الفيديوهات', icon: '🎥', folders: [], items: old.videos || [] },
-      { id: 'audios', name: 'المقاطع الصوتية', icon: '🎧', folders: [], items: old.audios || [] }
-    ],
-    announcements: old.announcements || []
-  };
-}
-
-// ===== GitHub API =====
-async function githubApi(path, method = 'GET', body = null) {
-  const token = getToken();
+async function api(path, method, body) {
   const url = path.startsWith('http') ? path : 'https://api.github.com/repos/' + REPO + path;
   const opts = {
     method,
     headers: {
-      'Authorization': 'token ' + token,
+      'Authorization': 'token ' + getToken(),
       'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'AlHashdAdmin'
+      'Content-Type': 'application/json'
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  const resp = await fetch(url, opts);
-  if (!resp.ok) throw new Error(await resp.text());
-  if (resp.status === 204) return null;
-  return resp.json();
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(await r.text());
+  if (r.status === 204) return null;
+  return r.json();
 }
 
-// ===== Navigation =====
-function pushNav(type, data = {}) {
-  navStack.push({ type, ...data });
-  renderCurrentPage();
-}
-function popNav() {
-  navStack.pop();
-  renderCurrentPage();
-}
-function renderCurrentPage() {
-  const current = navStack[navStack.length - 1];
-  if (!current || current.type === 'sections') renderSectionsPage();
-  else if (current.type === 'section') renderSectionPage(current.id);
-  else if (current.type === 'folder') renderFolderPage(current.sectionId, current.folderId);
-  else if (current.type === 'announcements') renderAnnouncementsPage();
+function push(type, d) { stack.push({ type, ...d }); render(); }
+function pop() { stack.pop(); render(); }
+function render() {
+  const c = stack[stack.length - 1];
+  if (!c || c.type === 'sections') renderSections();
+  else if (c.type === 'section') renderSection(c.id);
+  else if (c.type === 'folder') renderFolder(c.sid, c.fid);
+  else if (c.type === 'anns') renderAnns();
 }
 
-// ===== Page 1: Sections =====
-function renderSectionsPage() {
-  navStack = [{ type: 'sections' }];
-  const container = document.getElementById('admin-view');
-  const sections = repoContent.sections || [];
-
-  let html = `
-    <div class="page-title">📋 الأقسام</div>
-    <div style="margin:0 16px 12px;color:var(--text-secondary);font-size:0.85rem;">
-      اضغط على أي قسم لإدارة مجلداته ومحتواه
-    </div>
-  `;
-
-  if (sections.length === 0) {
-    html += `<div class="empty-state"><div class="icon">📂</div><div class="text">لا توجد أقسام</div></div>`;
-  } else {
-    sections.forEach((sec, idx) => {
-      const totalItems = sec.items?.length || 0;
-      const folderCount = sec.folders?.length || 0;
-      html += `
-        <div class="admin-card" onclick="pushNav('section', {id:'${sec.id}'})">
-          <div class="card-info">
-            <div class="card-icon">${sec.icon || '📁'}</div>
-            <div>
-              <div class="card-name">${escapeHtml(sec.name)}</div>
-              <div class="card-meta">${folderCount} مجلد · ${totalItems} عنصر</div>
-            </div>
-          </div>
-          <div class="card-actions">
-            <button class="action-btn edit" onclick="event.stopPropagation();editSection(${idx})">✏️</button>
-            <button class="action-btn delete" onclick="event.stopPropagation();deleteSection(${idx})">🗑️</button>
-          </div>
+// ===== SECTIONS =====
+function renderSections() {
+  stack = [{ type: 'sections' }];
+  const view = document.getElementById('view');
+  const secs = data.sections || [];
+  let html = '<div class="page-title">📋 الأقسام</div>';
+  if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
+  else secs.forEach((s, i) => {
+    html += `
+      <div class="card" onclick="push('section',{id:'${s.id}'})">
+        <div class="info"><div class="icon">${s.icon||'📁'}</div><div>
+          <div class="name">${esc(s.name)}</div>
+          <div class="meta">${s.folders?.length||0} مجلد · ${s.items?.length||0} عنصر</div>
+        </div></div>
+        <div class="actions">
+          <button class="ed" onclick="event.stopPropagation();editSec(${i})">✏️</button>
+          <button class="del" onclick="event.stopPropagation();delSec(${i})">🗑</button>
         </div>
-      `;
-    });
-  }
-
+      </div>`;
+  });
   html += `
-    <div style="display:flex;gap:10px;margin:16px;">
-      <div class="add-fab" style="flex:1;" onclick="openAddSectionModal()">
-        <span>➕</span>
-        <span>إضافة قسم</span>
-      </div>
-      <div class="add-fab" style="flex:1;background:rgba(212,175,55,0.08);" onclick="pushNav('announcements')">
-        <span>📢</span>
-        <span>الإعلانات</span>
-      </div>
-    </div>
-  `;
-
-  container.innerHTML = html;
+    <div style="display:flex;gap:10px;margin:14px 16px;">
+      <div class="fab" style="flex:1;" onclick="openAddSec()">➕ قسم</div>
+      <div class="fab" style="flex:1;" onclick="push('anns')">📢 إعلانات</div>
+    </div>`;
+  view.innerHTML = html;
   window.scrollTo(0, 0);
 }
 
-// ===== Page 2: Section (Folders) =====
-function renderSectionPage(sectionId) {
-  const container = document.getElementById('admin-view');
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  if (!section) { popNav(); return; }
-
-  const folders = section.folders || [];
-
+function renderSection(sid) {
+  const view = document.getElementById('view');
+  const sec = data.sections?.find(s => s.id === sid);
+  if (!sec) { pop(); return; }
+  const folders = sec.folders || [];
   let html = `
-    <div class="breadcrumb">
-      <button class="back-btn" onclick="popNav()">← رجوع</button>
-      <span class="crumb-sep">|</span>
-      <span class="crumb">${escapeHtml(section.name)}</span>
-    </div>
-    <div class="page-title">📁 المجلدات</div>
-  `;
-
-  if (folders.length === 0) {
-    html += `<div class="empty-state"><div class="icon">📁</div><div class="text">لا توجد مجلدات</div></div>`;
-  } else {
-    folders.forEach((folder, idx) => {
-      const count = (section.items || []).filter(i => i.folderId === folder.id).length;
-      html += `
-        <div class="admin-card" onclick="pushNav('folder', {sectionId:'${sectionId}', folderId:'${folder.id}'})">
-          <div class="card-info">
-            <div class="card-icon">📁</div>
-            <div>
-              <div class="card-name">${escapeHtml(folder.name)}</div>
-              <div class="card-meta">${count} عنصر</div>
-            </div>
-          </div>
-          <div class="card-actions">
-            <button class="action-btn edit" onclick="event.stopPropagation();editFolder('${sectionId}',${idx})">✏️</button>
-            <button class="action-btn delete" onclick="event.stopPropagation();deleteFolder('${sectionId}',${idx})">🗑️</button>
-          </div>
+    <div class="breadcrumb"><button class="back" onclick="pop()">← رجوع</button>
+    <span class="sep">|</span><span class="crumb">${esc(sec.name)}</span></div>
+    <div class="page-title">📁 المجلدات</div>`;
+  if (!folders.length) html += '<div class="empty"><div class="ei">📁</div><div>لا توجد مجلدات</div></div>';
+  else folders.forEach((f, i) => {
+    const cnt = (sec.items||[]).filter(x => x.folderId === f.id).length;
+    html += `
+      <div class="card" onclick="push('folder',{sid:'${sid}',fid:'${f.id}'})">
+        <div class="info"><div class="icon">📁</div><div>
+          <div class="name">${esc(f.name)}</div><div class="meta">${cnt} عنصر</div>
+        </div></div>
+        <div class="actions">
+          <button class="ed" onclick="event.stopPropagation();editFld('${sid}',${i})">✏️</button>
+          <button class="del" onclick="event.stopPropagation();delFld('${sid}',${i})">🗑</button>
         </div>
-      `;
-    });
-  }
-
-  html += `
-    <div class="add-fab" onclick="openAddFolderModal('${sectionId}')">
-      <span>➕</span>
-      <span>إضافة مجلد جديد</span>
-    </div>
-  `;
-
-  container.innerHTML = html;
-  window.scrollTo(0, 0);
+      </div>`;
+  });
+  html += `<div class="fab" onclick="openAddFld('${sid}')">➕ مجلد جديد</div>`;
+  view.innerHTML = html; window.scrollTo(0, 0);
 }
 
-// ===== Page 3: Folder (Items) =====
-function renderFolderPage(sectionId, folderId) {
-  const container = document.getElementById('admin-view');
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  if (!section) { popNav(); return; }
-
-  const folder = section.folders?.find(f => f.id === folderId);
-  if (!folder) { popNav(); return; }
-
-  const items = (section.items || []).filter(i => i.folderId === folderId);
-
+function renderFolder(sid, fid) {
+  const view = document.getElementById('view');
+  const sec = data.sections?.find(s => s.id === sid);
+  const fld = sec?.folders?.find(f => f.id === fid);
+  if (!sec || !fld) { pop(); return; }
+  const items = (sec.items||[]).filter(i => i.folderId === fid);
   let html = `
-    <div class="breadcrumb">
-      <button class="back-btn" onclick="popNav()">← رجوع</button>
-      <span class="crumb-sep">|</span>
-      <span class="crumb">${escapeHtml(section.name)}</span>
-      <span class="crumb-sep">›</span>
-      <span class="crumb">${escapeHtml(folder.name)}</span>
-    </div>
-    <div class="page-title">📂 ${escapeHtml(folder.name)}</div>
-  `;
-
-  // Upload area
-  html += `
-    <div class="upload-area" id="upload-area">
-      <div class="upload-icon">📤</div>
-      <div class="upload-text">اضغط هنا لإضافة وسائط لهذا المجلد</div>
-      <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*" style="display:none;">
-    </div>
-  `;
-
-  // Items
-  if (items.length === 0) {
-    html += `<div class="empty-state"><div class="icon">📂</div><div class="text">لا توجد وسائط</div></div>`;
-  } else {
-    items.forEach(item => {
-      const thumb = item.thumbnail || item.cover || item.url || '';
-      const isAudio = item.type === 'audio';
-      html += `
-        <div class="media-item-card">
-          ${thumb ? `<img src="${thumb}" alt="" onerror="this.style.display='none'">` : ''}
-          <div class="thumb-placeholder" style="display:${thumb?'none':'flex'}">${isAudio?'🎧':'🖼'}</div>
-          <div class="media-info">
-            <div class="media-title">${escapeHtml(item.title)}</div>
-            <div class="media-desc">${item.visibility === 'private' ? '🔒 خاص · ' : ''}${item.allowDownload !== false ? '⬇️' : '❌'} · ${item.allowShare !== false ? '🔗' : '❌'}</div>
-          </div>
-          <button class="delete-btn" onclick="deleteMediaItem('${sectionId}', '${folderId}', ${item.id})" title="حذف">🗑</button>
-        </div>
-      `;
-    });
-  }
-
-  container.innerHTML = html;
-  window.scrollTo(0, 0);
-
+    <div class="breadcrumb"><button class="back" onclick="pop()">← رجوع</button>
+    <span class="sep">|</span><span class="crumb">${esc(fld.name)}</span></div>
+    <div class="page-title">📂 ${esc(fld.name)}</div>
+    <div class="upload-zone" id="uz"><div class="u-icon">📤</div><div class="u-text">اضغط لإضافة وسائط</div>
+    <input type="file" id="uf" multiple accept="image/*,video/*,audio/*" style="display:none;"></div>`;
+  if (!items.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد وسائط</div></div>';
+  else items.forEach(it => {
+    const thumb = it.thumbnail || it.cover || it.url || '';
+    const isA = it.type === 'audio';
+    html += `
+      <div class="media-row">
+        ${thumb?`<img src="${thumb}" onerror="this.style.display='none'">`:''}
+        <div class="ph" style="display:${thumb?'none':'flex'}">${isA?'🎧':'🖼'}</div>
+        <div class="minfo"><div class="mtitle">${esc(it.title)}</div>
+        <div class="mdesc">${it.visibility==='private'?'🔒':''} ${it.allowDownload!==false?'⬇️':'❌'} ${it.allowShare!==false?'🔗':'❌'}</div></div>
+        <button class="del" onclick="delItem('${sid}','${fid}',${it.id})">🗑</button>
+      </div>`;
+  });
+  view.innerHTML = html; window.scrollTo(0, 0);
   setTimeout(() => {
-    const uploadArea = document.getElementById('upload-area');
-    const fileInput = document.getElementById('file-input');
-    if (uploadArea && fileInput) {
-      uploadArea.onclick = () => fileInput.click();
-      fileInput.onchange = (e) => openUploadModal(e, sectionId, folderId);
-    }
+    const uz = document.getElementById('uz'), uf = document.getElementById('uf');
+    if (uz && uf) { uz.onclick = () => uf.click(); uf.onchange = e => openUp(e, sid, fid); }
   }, 0);
 }
 
-// ===== Page 4: Announcements =====
-function renderAnnouncementsPage() {
-  const container = document.getElementById('admin-view');
-  const announcements = repoContent.announcements || [];
-
+function renderAnns() {
+  const view = document.getElementById('view');
+  const anns = data.announcements || [];
   let html = `
-    <div class="breadcrumb">
-      <button class="back-btn" onclick="popNav()">← رجوع</button>
-      <span class="crumb-sep">|</span>
-      <span class="crumb">📢 الإعلانات</span>
-    </div>
-    <div class="page-title">📢 الإعلانات والتحديثات</div>
-  `;
-
-  if (announcements.length === 0) {
-    html += `<div class="empty-state"><div class="icon">📢</div><div class="text">لا توجد إعلانات</div></div>`;
-  } else {
-    announcements.forEach((ann, idx) => {
-      html += `
-        <div class="admin-card">
-          <div class="card-info">
-            <div class="card-icon">${ann.active ? '🔔' : '🔕'}</div>
-            <div>
-              <div class="card-name">${escapeHtml(ann.title)}</div>
-              <div class="card-meta">${escapeHtml(ann.text || '').substring(0, 50)}${(ann.text||'').length>50?'...':''}</div>
-            </div>
-          </div>
-          <div class="card-actions">
-            <button class="action-btn edit" onclick="editAnnouncement(${idx})">✏️</button>
-            <button class="action-btn delete" onclick="deleteAnnouncement(${idx})">🗑️</button>
-          </div>
+    <div class="breadcrumb"><button class="back" onclick="pop()">← رجوع</button>
+    <span class="sep">|</span><span class="crumb">📢 الإعلانات</span></div>
+    <div class="page-title">📢 الإعلانات</div>`;
+  if (!anns.length) html += '<div class="empty"><div class="ei">📢</div><div>لا توجد إعلانات</div></div>';
+  else anns.forEach((a, i) => {
+    html += `
+      <div class="card">
+        <div class="info"><div class="icon">${a.active?'🔔':'🔕'}</div><div>
+          <div class="name">${esc(a.title)}</div>
+          <div class="meta">${esc(a.text||'').substring(0,40)}${(a.text||'').length>40?'...':''}</div>
+        </div></div>
+        <div class="actions">
+          <button class="ed" onclick="editAnn(${i})">✏️</button>
+          <button class="del" onclick="delAnn(${i})">🗑</button>
         </div>
-      `;
-    });
-  }
-
-  html += `
-    <div class="add-fab" onclick="openAddAnnouncementModal()">
-      <span>➕</span>
-      <span>إضافة إعلان جديد</span>
-    </div>
-  `;
-
-  container.innerHTML = html;
-  window.scrollTo(0, 0);
+      </div>`;
+  });
+  html += `<div class="fab" onclick="openAddAnn()">➕ إعلان جديد</div>`;
+  view.innerHTML = html; window.scrollTo(0, 0);
 }
 
-// ===== Upload Modal =====
-function openUploadModal(e, sectionId, folderId) {
+// ===== UPLOAD =====
+function openUp(e, sid, fid) {
   const files = Array.from(e.target.files);
   if (!files.length) return;
-  currentUploadFile = files[0];
-
-  const section = repoContent.sections?.find(s => s.id === sectionId);
+  upFile = files[0];
+  const sec = data.sections?.find(s => s.id === sid);
   const body = document.getElementById('modal-body');
-  document.getElementById('modal-title').textContent = '📤 إضافة وسائط';
-
-  const url = URL.createObjectURL(currentUploadFile);
+  document.getElementById('modal-title').textContent = '📤 رفع وسائط';
+  const url = URL.createObjectURL(upFile);
   let preview = '';
-  if (currentUploadFile.type.startsWith('image/')) {
-    preview = `<img src="${url}" style="max-width:100%;max-height:180px;border-radius:12px;margin-bottom:16px;">`;
-  } else if (currentUploadFile.type.startsWith('video/')) {
-    preview = `<video src="${url}" controls style="max-width:100%;max-height:180px;border-radius:12px;margin-bottom:16px;"></video>`;
-  } else {
-    preview = `<div style="font-size:3rem;margin-bottom:16px;">🎧</div>`;
-  }
-
+  if (upFile.type.startsWith('image/')) preview = `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:12px;margin-bottom:14px;">`;
+  else if (upFile.type.startsWith('video/')) preview = `<video src="${url}" controls style="max-width:100%;max-height:160px;border-radius:12px;margin-bottom:14px;"></video>`;
+  else preview = `<div style="font-size:2.5rem;margin-bottom:14px;">🎧</div>`;
   body.innerHTML = `
     <div style="text-align:center;">${preview}</div>
-    <div class="form-group">
-      <label class="form-label">العنوان</label>
-      <input type="text" class="form-input" id="up-title" value="${currentUploadFile.name.split('.')[0]}">
+    <div class="fg"><label>العنوان</label><input type="text" id="ut" value="${upFile.name.split('.')[0]}"></div>
+    <div class="fg"><label>الوصف</label><input type="text" id="ud" placeholder="اختياري"></div>
+    <div class="fg"><label class="chk"><input type="checkbox" id="upriv"> <span>🔒 خاص (لا يظهر للزوار)</span></label></div>
+    <div class="fg" style="display:flex;gap:12px;">
+      <label class="chk"><input type="checkbox" id="udl" checked> <span>⬇️ تنزيل</span></label>
+      <label class="chk"><input type="checkbox" id="ush" checked> <span>🔗 مشاركة</span></label>
     </div>
-    <div class="form-group">
-      <label class="form-label">الوصف</label>
-      <input type="text" class="form-input" id="up-desc" placeholder="وصف اختياري">
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:16px;">
-      <label style="display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:0.85rem;cursor:pointer;">
-        <input type="checkbox" id="up-private" style="width:16px;height:16px;">
-        <span>🔒 خاص (لا يظهر للزوار)</span>
-      </label>
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:16px;">
-      <label style="display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:0.85rem;cursor:pointer;">
-        <input type="checkbox" id="up-download" checked style="width:16px;height:16px;">
-        <span>⬇️ السماح بالتنزيل</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:0.85rem;cursor:pointer;">
-        <input type="checkbox" id="up-share" checked style="width:16px;height:16px;">
-        <span>🔗 السماح بالمشاركة</span>
-      </label>
-    </div>
-    <button class="submit-btn" onclick="saveUpload('${sectionId}', '${folderId}')">رفع وحفظ</button>
-  `;
-
-  document.getElementById('modal-overlay').classList.add('active');
+    <button class="save" onclick="saveUp('${sid}','${fid}')">رفع وحفظ</button>`;
+  showModal();
 }
 
-async function saveUpload(sectionId, folderId) {
-  const title = document.getElementById('up-title').value.trim();
-  const description = document.getElementById('up-desc').value.trim();
-  const visibility = document.getElementById('up-private').checked ? 'private' : 'public';
-  const allowDownload = document.getElementById('up-download').checked;
-  const allowShare = document.getElementById('up-share').checked;
-
-  if (!title) { showToast('العنوان مطلوب', 'error'); return; }
-  if (!currentUploadFile) { showToast('اختر ملفاً', 'error'); return; }
-
-  showToast('جاري الرفع...', 'info');
-
+async function saveUp(sid, fid) {
+  const title = document.getElementById('ut').value.trim();
+  const desc = document.getElementById('ud').value.trim();
+  const priv = document.getElementById('upriv').checked;
+  const dl = document.getElementById('udl').checked;
+  const sh = document.getElementById('ush').checked;
+  if (!title) { toast('العنوان مطلوب', 'bad'); return; }
+  if (!upFile) { toast('اختر ملفاً', 'bad'); return; }
+  toast('جاري الرفع...', 'ok');
   try {
-    const filename = Date.now() + '_' + currentUploadFile.name.replace(/\s+/g, '_');
-    const repoPath = 'uploads/' + filename;
-
+    const fname = Date.now() + '_' + upFile.name.replace(/\s+/g, '_');
+    const path = 'uploads/' + fname;
     const reader = new FileReader();
-    reader.readAsDataURL(currentUploadFile);
-    reader.onloadend = async function() {
-      const base64 = reader.result.split(',')[1];
-
-      await githubApi('/contents/' + repoPath, 'PUT', {
-        message: 'Upload ' + filename,
-        content: base64,
-        branch: BRANCH
-      });
-
-      const fileUrl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + repoPath;
-      const section = repoContent.sections?.find(s => s.id === sectionId);
-
-      const newItem = {
-        id: Date.now(),
-        title,
-        description,
-        folderId,
-        url: fileUrl,
-        type: sectionId === 'images' ? 'image' : sectionId === 'videos' ? 'video' : 'audio',
-        visibility,
-        allowDownload,
-        allowShare
+    reader.readAsDataURL(upFile);
+    reader.onloadend = async () => {
+      const b64 = reader.result.split(',')[1];
+      await api('/contents/' + path, 'PUT', { message: 'Upload ' + fname, content: b64, branch: BRANCH });
+      const furl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + path;
+      const sec = data.sections?.find(s => s.id === sid);
+      const item = {
+        id: Date.now(), title, description: desc,
+        folderId: fid, url: furl,
+        type: sid==='images'?'image':sid==='videos'?'video':'audio',
+        visibility: priv?'private':'public',
+        allowDownload: dl, allowShare: sh
       };
-
-      if (sectionId === 'images') newItem.thumbnail = fileUrl;
-      else if (sectionId === 'videos') newItem.thumbnail = fileUrl;
-      else { newItem.cover = fileUrl; newItem.duration = '--:--'; }
-
-      if (!section.items) section.items = [];
-      section.items.push(newItem);
-      await saveContentJson();
-
-      closeModal();
-      renderFolderPage(sectionId, folderId);
-      showToast('تم الرفع بنجاح!', 'success');
+      if (sid === 'images') item.thumbnail = furl;
+      else if (sid === 'videos') item.thumbnail = furl;
+      else { item.cover = furl; item.duration = '--:--'; }
+      if (!sec.items) sec.items = [];
+      sec.items.push(item);
+      await saveData();
+      hideModal(); renderFolder(sid, fid);
+      toast('تم الرفع', 'ok');
     };
-  } catch (err) {
-    console.error(err);
-    showToast('خطأ: ' + err.message, 'error');
-  }
+  } catch (e) { toast('خطأ: ' + e.message, 'bad'); }
 }
 
-// ===== Delete Media =====
-async function deleteMediaItem(sectionId, folderId, itemId) {
-  if (!confirm('هل أنت متأكد من حذف هذا العنصر؟')) return;
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  const idx = section.items.findIndex(i => i.id === itemId);
+async function delItem(sid, fid, id) {
+  if (!confirm('حذف هذا العنصر؟')) return;
+  const sec = data.sections?.find(s => s.id === sid);
+  const idx = sec.items.findIndex(i => i.id === id);
   if (idx === -1) return;
-  section.items.splice(idx, 1);
-  await saveContentJson();
-  renderFolderPage(sectionId, folderId);
-  showToast('تم الحذف', 'success');
+  sec.items.splice(idx, 1);
+  await saveData();
+  renderFolder(sid, fid);
+  toast('تم الحذف', 'ok');
 }
 
-// ===== Section Management =====
-function editSection(index) {
-  const sec = repoContent.sections[index];
+// ===== SECTION CRUD =====
+function editSec(i) {
+  const s = data.sections[i];
   const body = document.getElementById('modal-body');
   document.getElementById('modal-title').textContent = '✏️ تعديل قسم';
   body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">الاسم</label>
-      <input type="text" class="form-input" id="edit-sec-name" value="${escapeHtml(sec.name)}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">الأيقونة (emoji)</label>
-      <input type="text" class="form-input" id="edit-sec-icon" value="${sec.icon || ''}" maxlength="2">
-    </div>
-    <button class="submit-btn" onclick="saveEditSection(${index})">حفظ التعديل</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('active');
+    <div class="fg"><label>الاسم</label><input type="text" id="esn" value="${esc(s.name)}"></div>
+    <div class="fg"><label>الأيقونة</label><input type="text" id="esi" value="${s.icon||''}" maxlength="2"></div>
+    <button class="save" onclick="saveEditSec(${i})">حفظ</button>`;
+  showModal();
 }
-
-async function saveEditSection(index) {
-  const name = document.getElementById('edit-sec-name').value.trim();
-  const icon = document.getElementById('edit-sec-icon').value.trim();
-  if (!name) { showToast('الاسم مطلوب', 'error'); return; }
-  repoContent.sections[index].name = name;
-  repoContent.sections[index].icon = icon;
-  await saveContentJson();
-  closeModal();
-  renderSectionsPage();
-  showToast('تم التعديل', 'success');
+async function saveEditSec(i) {
+  const n = document.getElementById('esn').value.trim();
+  const ic = document.getElementById('esi').value.trim();
+  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
+  data.sections[i].name = n; data.sections[i].icon = ic;
+  await saveData(); hideModal(); renderSections();
+  toast('تم التعديل', 'ok');
 }
-
-async function deleteSection(index) {
-  if (!confirm('حذف القسم وجميع محتوياته نهائياً؟')) return;
-  repoContent.sections.splice(index, 1);
-  await saveContentJson();
-  renderSectionsPage();
-  showToast('تم الحذف', 'success');
+async function delSec(i) {
+  if (!confirm('حذف القسم وجميع محتوياته؟')) return;
+  data.sections.splice(i, 1);
+  await saveData(); renderSections();
+  toast('تم الحذف', 'ok');
 }
-
-function openAddSectionModal() {
+function openAddSec() {
   const body = document.getElementById('modal-body');
-  document.getElementById('modal-title').textContent = '➕ إضافة قسم جديد';
+  document.getElementById('modal-title').textContent = '➕ قسم جديد';
   body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">اسم القسم</label>
-      <input type="text" class="form-input" id="new-sec-name" placeholder="مثال: المقالات">
+    <div class="fg"><label>الاسم</label><input type="text" id="nsn" placeholder="مثال: المقالات"></div>
+    <div class="fg"><label>الأيقونة</label><input type="text" id="nsi" value="📁" maxlength="2"></div>
+    <div class="fg"><label>النوع</label>
+      <select id="nst"><option value="image">🖼 صور</option><option value="video">🎥 فيديو</option><option value="audio">🎧 صوت</option></select>
     </div>
-    <div class="form-group">
-      <label class="form-label">الأيقونة</label>
-      <input type="text" class="form-input" id="new-sec-icon" placeholder="📝" maxlength="2" value="📁">
-    </div>
-    <div class="form-group">
-      <label class="form-label">نوع المحتوى</label>
-      <select class="form-select" id="new-sec-type">
-        <option value="image">🖼 صور</option>
-        <option value="video">🎥 فيديو</option>
-        <option value="audio">🎧 صوت</option>
-      </select>
-    </div>
-    <button class="submit-btn" onclick="saveNewSection()">حفظ</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('active');
+    <button class="save" onclick="saveNewSec()">حفظ</button>`;
+  showModal();
+}
+async function saveNewSec() {
+  const n = document.getElementById('nsn').value.trim();
+  const ic = document.getElementById('nsi').value.trim() || '📁';
+  const t = document.getElementById('nst').value;
+  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
+  data.sections.push({ id: 's' + Date.now(), name: n, icon: ic, folders: [], items: [], defaultType: t });
+  await saveData(); hideModal(); renderSections();
+  toast('تم الإضافة', 'ok');
 }
 
-async function saveNewSection() {
-  const name = document.getElementById('new-sec-name').value.trim();
-  const icon = document.getElementById('new-sec-icon').value.trim() || '📁';
-  const type = document.getElementById('new-sec-type').value;
-  if (!name) { showToast('الاسم مطلوب', 'error'); return; }
-  repoContent.sections.push({
-    id: 'sec_' + Date.now(), name, icon,
-    folders: [], items: [], defaultType: type
-  });
-  await saveContentJson();
-  closeModal();
-  renderSectionsPage();
-  showToast('تم الإضافة', 'success');
-}
-
-// ===== Folder Management =====
-function editFolder(sectionId, index) {
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  const folder = section.folders[index];
+// ===== FOLDER CRUD =====
+function editFld(sid, i) {
+  const sec = data.sections?.find(s => s.id === sid);
+  const f = sec.folders[i];
   const body = document.getElementById('modal-body');
   document.getElementById('modal-title').textContent = '✏️ تعديل مجلد';
   body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">اسم المجلد</label>
-      <input type="text" class="form-input" id="edit-folder-name" value="${escapeHtml(folder.name)}">
-    </div>
-    <button class="submit-btn" onclick="saveEditFolder('${sectionId}', ${index})">حفظ</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('active');
+    <div class="fg"><label>الاسم</label><input type="text" id="efn" value="${esc(f.name)}"></div>
+    <button class="save" onclick="saveEditFld('${sid}',${i})">حفظ</button>`;
+  showModal();
 }
-
-async function saveEditFolder(sectionId, index) {
-  const name = document.getElementById('edit-folder-name').value.trim();
-  if (!name) { showToast('الاسم مطلوب', 'error'); return; }
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  section.folders[index].name = name;
-  await saveContentJson();
-  closeModal();
-  renderSectionPage(sectionId);
-  showToast('تم التعديل', 'success');
+async function saveEditFld(sid, i) {
+  const n = document.getElementById('efn').value.trim();
+  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
+  const sec = data.sections?.find(s => s.id === sid);
+  sec.folders[i].name = n;
+  await saveData(); hideModal(); renderSection(sid);
+  toast('تم التعديل', 'ok');
 }
-
-async function deleteFolder(sectionId, index) {
+async function delFld(sid, i) {
   if (!confirm('حذف المجلد؟ (العناصر ستصبح بدون مجلد)')) return;
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  const folderId = section.folders[index].id;
-  section.folders.splice(index, 1);
-  (section.items || []).forEach(item => {
-    if (item.folderId === folderId) delete item.folderId;
-  });
-  await saveContentJson();
-  renderSectionPage(sectionId);
-  showToast('تم الحذف', 'success');
+  const sec = data.sections?.find(s => s.id === sid);
+  const fid = sec.folders[i].id;
+  sec.folders.splice(i, 1);
+  (sec.items||[]).forEach(it => { if (it.folderId === fid) delete it.folderId; });
+  await saveData(); renderSection(sid);
+  toast('تم الحذف', 'ok');
 }
-
-function openAddFolderModal(sectionId) {
+function openAddFld(sid) {
   const body = document.getElementById('modal-body');
-  document.getElementById('modal-title').textContent = '➕ إضافة مجلد جديد';
+  document.getElementById('modal-title').textContent = '➕ مجلد جديد';
   body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">اسم المجلد</label>
-      <input type="text" class="form-input" id="new-folder-name" placeholder="مثال: حرم الإمام الحسين">
-    </div>
-    <button class="submit-btn" onclick="saveNewFolder('${sectionId}')">حفظ</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('active');
+    <div class="fg"><label>الاسم</label><input type="text" id="nfn" placeholder="مثال: حرم الإمام الحسين"></div>
+    <button class="save" onclick="saveNewFld('${sid}')">حفظ</button>`;
+  showModal();
+}
+async function saveNewFld(sid) {
+  const n = document.getElementById('nfn').value.trim();
+  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
+  const sec = data.sections?.find(s => s.id === sid);
+  if (!sec.folders) sec.folders = [];
+  sec.folders.push({ id: 'f' + Date.now(), name: n });
+  await saveData(); hideModal(); renderSection(sid);
+  toast('تم الإضافة', 'ok');
 }
 
-async function saveNewFolder(sectionId) {
-  const name = document.getElementById('new-folder-name').value.trim();
-  if (!name) { showToast('الاسم مطلوب', 'error'); return; }
-  const section = repoContent.sections?.find(s => s.id === sectionId);
-  if (!section.folders) section.folders = [];
-  section.folders.push({ id: 'folder_' + Date.now(), name });
-  await saveContentJson();
-  closeModal();
-  renderSectionPage(sectionId);
-  showToast('تم الإضافة', 'success');
-}
-
-// ===== Announcement Management =====
-function openAddAnnouncementModal() {
+// ===== ANNOUNCEMENT CRUD =====
+function openAddAnn() {
   const body = document.getElementById('modal-body');
-  document.getElementById('modal-title').textContent = '➕ إضافة إعلان';
+  document.getElementById('modal-title').textContent = '➕ إعلان جديد';
   body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">العنوان</label>
-      <input type="text" class="form-input" id="new-ann-title" placeholder="عنوان الإعلان">
-    </div>
-    <div class="form-group">
-      <label class="form-label">النص</label>
-      <input type="text" class="form-input" id="new-ann-text" placeholder="نص الإعلان">
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-      <input type="checkbox" id="new-ann-active" checked style="width:18px;height:18px;">
-      <label style="color:var(--text-secondary);">نشط (يظهر للزوار)</label>
-    </div>
-    <button class="submit-btn" onclick="saveNewAnnouncement()">حفظ</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('active');
+    <div class="fg"><label>العنوان</label><input type="text" id="nat" placeholder="عنوان الإعلان"></div>
+    <div class="fg"><label>النص</label><input type="text" id="nax" placeholder="نص الإعلان"></div>
+    <div class="fg"><label class="chk"><input type="checkbox" id="naa" checked> <span>نشط</span></label></div>
+    <button class="save" onclick="saveNewAnn()">حفظ</button>`;
+  showModal();
 }
-
-async function saveNewAnnouncement() {
-  const title = document.getElementById('new-ann-title').value.trim();
-  const text = document.getElementById('new-ann-text').value.trim();
-  const active = document.getElementById('new-ann-active').checked;
-  if (!title) { showToast('العنوان مطلوب', 'error'); return; }
-  if (!repoContent.announcements) repoContent.announcements = [];
-  repoContent.announcements.push({
-    id: Date.now(), title, text, active,
-    date: new Date().toISOString().split('T')[0]
-  });
-  await saveContentJson();
-  closeModal();
-  renderAnnouncementsPage();
-  showToast('تم الإضافة', 'success');
+async function saveNewAnn() {
+  const t = document.getElementById('nat').value.trim();
+  const x = document.getElementById('nax').value.trim();
+  const a = document.getElementById('naa').checked;
+  if (!t) { toast('العنوان مطلوب', 'bad'); return; }
+  if (!data.announcements) data.announcements = [];
+  data.announcements.push({ id: Date.now(), title: t, text: x, active: a, date: new Date().toISOString().split('T')[0] });
+  await saveData(); hideModal(); renderAnns();
+  toast('تم الإضافة', 'ok');
 }
-
-function editAnnouncement(index) {
-  const ann = repoContent.announcements[index];
+function editAnn(i) {
+  const a = data.announcements[i];
   const body = document.getElementById('modal-body');
   document.getElementById('modal-title').textContent = '✏️ تعديل إعلان';
   body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">العنوان</label>
-      <input type="text" class="form-input" id="edit-ann-title" value="${escapeHtml(ann.title)}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">النص</label>
-      <input type="text" class="form-input" id="edit-ann-text" value="${escapeHtml(ann.text || '')}">
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-      <input type="checkbox" id="edit-ann-active" ${ann.active ? 'checked' : ''} style="width:18px;height:18px;">
-      <label style="color:var(--text-secondary);">نشط</label>
-    </div>
-    <button class="submit-btn" onclick="saveEditAnnouncement(${index})">حفظ</button>
-  `;
-  document.getElementById('modal-overlay').classList.add('active');
+    <div class="fg"><label>العنوان</label><input type="text" id="eat" value="${esc(a.title)}"></div>
+    <div class="fg"><label>النص</label><input type="text" id="eax" value="${esc(a.text||'')}"></div>
+    <div class="fg"><label class="chk"><input type="checkbox" id="eaa" ${a.active?'checked':''}> <span>نشط</span></label></div>
+    <button class="save" onclick="saveEditAnn(${i})">حفظ</button>`;
+  showModal();
 }
-
-async function saveEditAnnouncement(index) {
-  const title = document.getElementById('edit-ann-title').value.trim();
-  const text = document.getElementById('edit-ann-text').value.trim();
-  const active = document.getElementById('edit-ann-active').checked;
-  if (!title) { showToast('العنوان مطلوب', 'error'); return; }
-  repoContent.announcements[index] = { ...repoContent.announcements[index], title, text, active };
-  await saveContentJson();
-  closeModal();
-  renderAnnouncementsPage();
-  showToast('تم التعديل', 'success');
+async function saveEditAnn(i) {
+  const t = document.getElementById('eat').value.trim();
+  const x = document.getElementById('eax').value.trim();
+  const a = document.getElementById('eaa').checked;
+  if (!t) { toast('العنوان مطلوب', 'bad'); return; }
+  data.announcements[i] = { ...data.announcements[i], title: t, text: x, active: a };
+  await saveData(); hideModal(); renderAnns();
+  toast('تم التعديل', 'ok');
 }
-
-async function deleteAnnouncement(index) {
+async function delAnn(i) {
   if (!confirm('حذف الإعلان؟')) return;
-  repoContent.announcements.splice(index, 1);
-  await saveContentJson();
-  renderAnnouncementsPage();
-  showToast('تم الحذف', 'success');
+  data.announcements.splice(i, 1);
+  await saveData(); renderAnns();
+  toast('تم الحذف', 'ok');
 }
 
-// ===== Save Content =====
-async function saveContentJson() {
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(repoContent, null, 2))));
+// ===== SAVE =====
+async function saveData() {
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
   let sha = null;
-  try {
-    const data = await githubApi('/contents/content.json');
-    sha = data.sha;
-  } catch (e) {}
-  const body = { message: 'Update via admin panel', content, branch: BRANCH };
+  try { const d = await api('/contents/content.json'); sha = d.sha; } catch (e) {}
+  const body = { message: 'Update v3', content, branch: BRANCH };
   if (sha) body.sha = sha;
-  await githubApi('/contents/content.json', 'PUT', body);
+  await api('/contents/content.json', 'PUT', body);
 }
 
-// ===== Listeners =====
-function setupListeners() {
-  document.getElementById('admin-logout').onclick = () => {
-    sessionStorage.removeItem('admin_auth');
-    window.location.href = 'index.html';
-  };
-  document.getElementById('modal-close').onclick = closeModal;
-  document.getElementById('modal-overlay').onclick = (e) => {
-    if (e.target.id === 'modal-overlay') closeModal();
-  };
+// ===== MODAL =====
+function showModal() { document.getElementById('modal-bg').classList.add('on'); }
+function hideModal() { document.getElementById('modal-bg').classList.remove('on'); upFile = null; }
+
+// ===== SETUP =====
+function setup() {
+  document.getElementById('logout').onclick = () => { sessionStorage.removeItem('admin_auth'); location.href = 'index.html'; };
+  document.getElementById('modal-x').onclick = hideModal;
+  document.getElementById('modal-bg').onclick = e => { if (e.target.id === 'modal-bg') hideModal(); };
 }
 
-function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('active');
-  currentUploadFile = null;
-}
-
-// ===== Utilities =====
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function showToast(message, type = 'info') {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.className = 'toast ' + type;
-  toast.classList.add('active');
-  setTimeout(() => toast.classList.remove('active'), 3000);
+// ===== UTILS =====
+function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast ' + type; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
 }
