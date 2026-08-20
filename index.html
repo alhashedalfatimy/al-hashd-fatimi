@@ -3,91 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1a0505">
+  <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="الحشد الفاطمي - محتوى ديني من الحرمات المقدسة">
   <title>الحشد الفاطمي</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-  <link rel="icon" type="image/png" href="icons/icon-72x72.png">
+  <link rel="apple-touch-icon" href="icons/logo-new.png">
+  <link rel="icon" type="image/png" href="icons/logo-new.png">
   <style>
-    /* ===== CSS Variables - Dark (Default) ===== */
+    /* ===== DARK MODE (default) ===== */
     :root {
-      --bg-primary: #0d0d0d;
-      --bg-secondary: rgba(20, 20, 20, 0.6);
-      --bg-card: rgba(30, 30, 30, 0.45);
-      --bg-card-hover: rgba(40, 40, 40, 0.6);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --border-hover: rgba(139, 0, 0, 0.4);
-      --text-primary: #f0f0f0;
-      --text-secondary: #a0a0a0;
-      --text-muted: #666;
+      --bg: #000000;
+      --bg-sec: rgba(20, 20, 20, 0.75);
+      --card: rgba(30, 30, 30, 0.5);
+      --card-hover: rgba(40, 40, 40, 0.7);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-hover: rgba(139, 0, 0, 0.5);
+      --text: #ffffff;
+      --text2: #b0b0b0;
+      --text3: #555;
       --accent: #8B0000;
-      --accent-light: #b30000;
-      --accent-glow: rgba(139, 0, 0, 0.3);
+      --accent-light: #a50000;
+      --accent-glow: rgba(139, 0, 0, 0.25);
       --gold: #c9a227;
-      --shadow: rgba(0,0,0,0.4);
-      --glass-blur: 16px;
+      --blur: 20px;
     }
-
-    /* ===== Light Mode ===== */
+    /* ===== LIGHT MODE ===== */
     [data-theme="light"] {
-      --bg-primary: #f5f0eb;
-      --bg-secondary: rgba(255, 255, 255, 0.6);
-      --bg-card: rgba(255, 255, 255, 0.5);
-      --bg-card-hover: rgba(255, 255, 255, 0.7);
-      --border-color: rgba(0, 0, 0, 0.08);
+      --bg: #ffffff;
+      --bg-sec: rgba(245, 245, 245, 0.85);
+      --card: rgba(255, 255, 255, 0.7);
+      --card-hover: rgba(240, 240, 240, 0.9);
+      --border: rgba(0, 0, 0, 0.08);
       --border-hover: rgba(139, 0, 0, 0.3);
-      --text-primary: #1a1a1a;
-      --text-secondary: #555;
-      --text-muted: #888;
+      --text: #111111;
+      --text2: #555;
+      --text3: #999;
       --accent: #8B0000;
       --accent-light: #a50000;
       --accent-glow: rgba(139, 0, 0, 0.15);
-      --shadow: rgba(0,0,0,0.1);
+      --gold: #b8960f;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Tahoma', sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      min-height: 100vh;
-      overflow-x: hidden;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; overflow-x: hidden;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.4s ease, color 0.4s ease;
+      transition: background 0.3s ease, color 0.3s ease;
     }
 
-    /* ===== Background Pattern ===== */
-    .bg-pattern {
+    /* Background glow */
+    .bg-glow {
       position: fixed; inset: 0; z-index: 0;
-      background-image: 
-        radial-gradient(circle at 20% 30%, rgba(139,0,0,0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(139,0,0,0.05) 0%, transparent 50%);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(139,0,0,0.12) 0%, transparent 45%),
+        radial-gradient(circle at 80% 90%, rgba(139,0,0,0.06) 0%, transparent 40%);
       pointer-events: none;
     }
 
-    /* ===== Header ===== */
+    /* Header */
     .app-header {
       position: relative; z-index: 10;
-      padding: 16px;
+      padding: 14px 16px;
       display: flex; align-items: center; justify-content: space-between;
     }
     .logo-area {
       display: flex; align-items: center; gap: 10px;
+      cursor: pointer;
     }
     .logo-img {
-      width: 44px; height: 44px;
+      width: 46px; height: 46px;
       border-radius: 50%;
       border: 2px solid var(--accent);
       object-fit: cover;
-      box-shadow: 0 0 12px var(--accent-glow);
+      box-shadow: 0 0 15px var(--accent-glow);
     }
     .logo-text {
-      font-size: 1.15rem; font-weight: 800;
-      color: var(--text-primary);
-      letter-spacing: -0.5px;
+      font-size: 1.1rem; font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.3px;
     }
     .header-actions {
       display: flex; align-items: center; gap: 8px;
@@ -95,473 +92,312 @@
     .icon-btn {
       width: 38px; height: 38px;
       border-radius: 50%;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text2);
       font-size: 1.1rem;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       transition: all 0.2s;
     }
     .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* ===== Announcement Bar ===== */
-    .announcement-bar {
-      margin: 0 16px 12px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
+    /* Announcement */
+    .ann-bar {
+      margin: 0 16px 10px;
+      background: var(--bg-sec);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 10px 14px;
-      display: none;
-      align-items: center; gap: 10px;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      display: none; align-items: center; gap: 10px;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       position: relative; z-index: 10;
-      animation: slideDown 0.4s ease;
+      animation: slideDown 0.35s ease;
     }
-    .announcement-bar.active { display: flex; }
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .announcement-bar .bell { font-size: 1rem; }
-    .announcement-bar .text {
-      flex: 1; font-size: 0.85rem;
-      color: var(--text-secondary);
-    }
-    .announcement-bar .close-ann {
-      background: none; border: none;
-      color: var(--text-muted); font-size: 1rem;
-      cursor: pointer; padding: 2px;
-    }
+    .ann-bar.on { display: flex; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .ann-bar .bell { font-size: 1rem; }
+    .ann-bar .txt { flex: 1; font-size: 0.82rem; color: var(--text2); }
+    .ann-bar .x { background: none; border: none; color: var(--text3); font-size: 0.9rem; cursor: pointer; }
 
-    /* ===== Search ===== */
+    /* Search */
     .search-box {
-      margin: 0 16px 16px;
+      margin: 0 16px 14px;
       display: flex; align-items: center; gap: 10px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 4px 4px 4px 14px;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       position: relative; z-index: 10;
     }
     .search-box input {
       flex: 1; background: none; border: none;
-      color: var(--text-primary); font-family: inherit;
+      color: var(--text); font-family: inherit;
       font-size: 0.9rem; padding: 8px 0; outline: none;
     }
-    .search-box input::placeholder { color: var(--text-muted); }
-    .search-box .search-icon {
-      width: 32px; height: 32px;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text-muted); font-size: 1rem;
-    }
+    .search-box input::placeholder { color: var(--text3); }
+    .search-box .si { color: var(--text3); font-size: 1rem; }
 
-    /* ===== Section Groups ===== */
-    .section-group {
-      margin-bottom: 20px;
+    /* Section Group */
+    .sec-group {
+      margin-bottom: 18px;
       position: relative; z-index: 10;
     }
-    .section-header-row {
+    .sec-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 16px 10px;
+      padding: 0 16px 8px;
     }
-    .section-label {
+    .sec-label {
       display: flex; align-items: center; gap: 8px;
-      font-size: 1rem; font-weight: 700;
-      color: var(--text-primary);
+      font-size: 0.95rem; font-weight: 700;
+      color: var(--text);
     }
-    .section-label .sec-icon { font-size: 1.2rem; }
-    .section-count {
-      font-size: 0.75rem; color: var(--text-muted);
-      background: var(--bg-card);
-      padding: 3px 10px;
-      border-radius: 20px;
-      border: 1px solid var(--border-color);
+    .sec-label .ic { font-size: 1.1rem; }
+    .sec-count {
+      font-size: 0.72rem; color: var(--text3);
+      background: var(--card);
+      padding: 3px 10px; border-radius: 20px;
+      border: 1px solid var(--border);
     }
 
-    /* ===== Folder Cards (Horizontal Scroll) ===== */
-    .folders-scroll {
-      display: flex;
-      gap: 10px;
+    /* Horizontal scroll folders */
+    .folders-row {
+      display: flex; gap: 10px;
       padding: 0 16px;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
-    .folders-scroll::-webkit-scrollbar { display: none; }
+    .folders-row::-webkit-scrollbar { display: none; }
     .folder-chip {
       flex: 0 0 auto;
-      min-width: 140px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      min-width: 150px;
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 16px 14px;
+      padding: 18px 14px;
       text-align: center;
       cursor: pointer;
       scroll-snap-align: start;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       transition: all 0.25s ease;
     }
     .folder-chip:hover, .folder-chip:active {
-      background: var(--bg-card-hover);
+      background: var(--card-hover);
       border-color: var(--border-hover);
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px var(--shadow);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
     }
-    .folder-chip .f-icon { font-size: 2rem; margin-bottom: 8px; }
-    .folder-chip .f-name {
-      font-weight: 700; font-size: 0.85rem;
-      color: var(--text-primary);
-      white-space: nowrap;
-    }
-    .folder-chip .f-count {
-      font-size: 0.7rem; color: var(--text-muted);
-      margin-top: 4px;
-    }
-    .folder-chip.empty {
-      opacity: 0.5;
-      border-style: dashed;
-    }
+    .folder-chip .fic { font-size: 2rem; margin-bottom: 8px; }
+    .folder-chip .fnm { font-weight: 700; font-size: 0.82rem; white-space: nowrap; color: var(--text); }
+    .folder-chip .fcnt { font-size: 0.68rem; color: var(--text3); margin-top: 4px; }
+    .folder-chip.empty { opacity: 0.4; border-style: dashed; }
 
-    /* ===== Content Pages ===== */
-    .page-container {
-      display: none;
-      padding: 0 16px 100px;
-      position: relative; z-index: 10;
-      animation: fadeIn 0.3s ease;
-    }
-    .page-container.active { display: block; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    /* Pages */
+    .page { display: none; padding: 0 16px 100px; position: relative; z-index: 10; animation: fadeIn 0.25s ease; }
+    .page.on { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
     .breadcrumb {
       display: flex; align-items: center; gap: 8px;
-      padding: 8px 0 14px;
+      padding: 8px 0 12px;
     }
-    .breadcrumb .back-btn {
+    .breadcrumb .back {
       display: flex; align-items: center; gap: 4px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 6px 12px;
-      border-radius: 10px;
-      font-family: inherit; font-size: 0.8rem;
-      cursor: pointer; backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text2); padding: 6px 12px;
+      border-radius: 10px; font-family: inherit; font-size: 0.78rem;
+      cursor: pointer; backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .breadcrumb .crumb { color: var(--accent-light); font-weight: 600; font-size: 0.9rem; }
+    .breadcrumb .crumb { color: var(--accent-light); font-weight: 700; font-size: 0.88rem; }
 
-    /* ===== Media Grid ===== */
-    .media-grid {
+    /* Media Grid */
+    .m-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
     }
-    .media-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
+    .m-card {
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
       cursor: pointer;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       transition: all 0.2s;
+      position: relative;
     }
-    .media-card:hover, .media-card:active {
+    .m-card:hover, .m-card:active {
       border-color: var(--border-hover);
-      transform: scale(1.02);
+      transform: scale(1.015);
     }
-    .media-card img {
-      width: 100%; height: 130px;
+    .m-card img {
+      width: 100%; height: 125px;
       object-fit: cover; display: block;
     }
-    .media-card .m-info { padding: 10px 12px; }
-    .media-card .m-title {
-      font-size: 0.8rem; font-weight: 600;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .media-card .m-desc {
-      font-size: 0.72rem; color: var(--text-muted);
-      margin-top: 2px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .media-card .private-tag {
-      position: absolute; top: 6px; right: 6px;
-      background: rgba(0,0,0,0.6);
-      color: var(--gold); font-size: 0.65rem;
-      padding: 2px 8px; border-radius: 6px;
-      border: 1px solid var(--gold);
-    }
+    .m-card .mi { padding: 9px 12px; }
+    .m-card .mt { font-size: 0.78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m-card .md { font-size: 0.7rem; color: var(--text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* ===== Audio List ===== */
-    .audio-list { display: flex; flex-direction: column; gap: 8px; }
-    .audio-row {
+    /* Audio list */
+    .a-list { display: flex; flex-direction: column; gap: 8px; }
+    .a-row {
       display: flex; align-items: center; gap: 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 10px 14px;
       cursor: pointer;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       transition: all 0.2s;
     }
-    .audio-row:hover { border-color: var(--border-hover); }
-    .audio-row img {
-      width: 48px; height: 48px;
-      border-radius: 10px; object-fit: cover;
-      background: rgba(255,255,255,0.05);
-    }
-    .audio-row .a-info { flex: 1; min-width: 0; }
-    .audio-row .a-title {
-      font-weight: 600; font-size: 0.85rem;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .audio-row .a-desc {
-      font-size: 0.75rem; color: var(--text-muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .audio-row .a-play {
+    .a-row:hover { border-color: var(--border-hover); }
+    .a-row img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; background: rgba(255,255,255,0.04); }
+    .a-row .ai { flex: 1; min-width: 0; }
+    .a-row .at { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .a-row .ad { font-size: 0.75rem; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .a-row .ap {
       width: 36px; height: 36px;
       background: var(--accent-glow);
       border: 1px solid var(--accent);
       border-radius: 50%;
       color: var(--accent-light);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
     }
 
-    /* ===== Empty State ===== */
-    .empty-state {
-      text-align: center; padding: 60px 20px;
-      color: var(--text-muted);
-    }
-    .empty-state .e-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
-    .empty-state .e-text { font-size: 0.95rem; }
+    /* Empty */
+    .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+    .empty .ei { font-size: 3.5rem; margin-bottom: 12px; opacity: 0.3; }
+    .empty .et { font-size: 0.9rem; }
 
-    /* ===== Media Viewer ===== */
-    .viewer-overlay {
+    /* Viewer */
+    .viewer {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.92);
+      background: rgba(0,0,0,0.94);
       z-index: 1000;
       display: none; align-items: center; justify-content: center;
       flex-direction: column;
     }
-    .viewer-overlay.active { display: flex; }
-    .viewer-overlay .v-close {
-      position: absolute; top: 16px; left: 16px;
-      background: rgba(255,255,255,0.1);
-      border: none; color: #fff;
-      width: 40px; height: 40px;
-      border-radius: 50%; font-size: 1.3rem;
-      cursor: pointer; z-index: 10;
-    }
-    .viewer-overlay .v-content {
-      flex: 1; width: 100%;
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
-    }
-    .viewer-overlay .v-content img,
-    .viewer-overlay .v-content video {
-      max-width: 100%; max-height: 70vh;
-      border-radius: 12px;
-    }
-    .viewer-overlay .v-title {
-      position: absolute; bottom: 80px;
-      left: 0; right: 0; text-align: center;
-      color: #fff; font-weight: 600; padding: 0 20px;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
-    }
-    .viewer-overlay .v-actions {
-      display: flex; gap: 12px;
-      padding: 16px; position: absolute; bottom: 0;
-      left: 0; right: 0; justify-content: center;
-      background: linear-gradient(transparent, rgba(0,0,0,0.7));
-    }
-    .v-actions button {
-      display: flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      color: #fff; padding: 10px 18px;
-      border-radius: 10px; font-family: inherit;
-      font-size: 0.85rem; cursor: pointer;
-    }
-    .v-actions button.primary {
-      background: var(--accent-glow);
-      border-color: var(--accent);
-      color: #fff;
-    }
+    .viewer.on { display: flex; }
+    .viewer .vc { position: absolute; top: 14px; left: 14px; background: rgba(255,255,255,0.08); border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; z-index: 10; }
+    .viewer .vcon { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .viewer .vcon img, .viewer .vcon video { max-width: 100%; max-height: 68vh; border-radius: 12px; }
+    .viewer .vt { position: absolute; bottom: 76px; left: 0; right: 0; text-align: center; color: #fff; font-weight: 700; padding: 0 20px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); font-size: 0.95rem; }
+    .viewer .va { display: flex; gap: 10px; padding: 14px; position: absolute; bottom: 0; left: 0; right: 0; justify-content: center; background: linear-gradient(transparent, rgba(0,0,0,0.7)); }
+    .viewer .va button { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 9px 16px; border-radius: 10px; font-family: inherit; font-size: 0.82rem; cursor: pointer; }
+    .viewer .va button.pri { background: var(--accent-glow); border-color: var(--accent); }
 
-    /* ===== Audio Player Bar ===== */
-    .player-bar {
-      position: fixed; bottom: 68px; left: 10px; right: 10px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
+    /* Player bar */
+    .player {
+      position: fixed; bottom: 66px; left: 10px; right: 10px;
+      background: var(--bg-sec);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 10px 14px;
       display: none; align-items: center; gap: 12px;
       z-index: 100;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
     }
-    .player-bar.active { display: flex; }
-    .player-bar img {
-      width: 40px; height: 40px;
-      border-radius: 8px; object-fit: cover;
-    }
-    .player-bar .p-info { flex: 1; min-width: 0; }
-    .player-bar .p-title {
-      font-size: 0.8rem; font-weight: 600;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .player-bar .p-progress {
-      flex: 1; height: 3px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 2px; margin-top: 4px;
-      cursor: pointer;
-    }
-    .player-bar .p-progress-bar {
-      height: 100%; width: 0%;
-      background: var(--accent);
-      border-radius: 2px;
-    }
-    .player-bar .p-controls {
-      display: flex; align-items: center; gap: 6px;
-    }
-    .player-bar .p-controls button {
-      width: 30px; height: 30px;
-      background: var(--accent-glow);
-      border: 1px solid var(--accent);
-      border-radius: 50%;
-      color: var(--accent-light);
-      font-size: 0.8rem;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-    }
+    .player.on { display: flex; }
+    .player img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+    .player .pi { flex: 1; min-width: 0; }
+    .player .pt { font-size: 0.78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player .pp { flex: 1; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 4px; cursor: pointer; }
+    .player .ppb { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; }
+    .player .pc { display: flex; align-items: center; gap: 6px; }
+    .player .pc button { width: 30px; height: 30px; background: var(--accent-glow); border: 1px solid var(--accent); border-radius: 50%; color: var(--accent-light); font-size: 0.8rem; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-    /* ===== Bottom Nav ===== */
-    .bottom-nav {
+    /* Bottom nav */
+    .bnav {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--bg-secondary);
-      border-top: 1px solid var(--border-color);
+      background: var(--bg-sec);
+      border-top: 1px solid var(--border);
       display: flex; justify-content: space-around;
       padding: 6px 0 14px;
       z-index: 100;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
     }
-    .bottom-nav button {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 2px; background: none; border: none;
-      color: var(--text-muted); font-family: inherit;
-      font-size: 0.6rem; cursor: pointer;
-      padding: 4px 14px; transition: color 0.2s;
-    }
-    .bottom-nav button.active { color: var(--accent); }
-    .bottom-nav button .n-icon { font-size: 1.2rem; }
+    .bnav button { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; color: var(--text3); font-family: inherit; font-size: 0.58rem; cursor: pointer; padding: 4px 14px; transition: color 0.2s; }
+    .bnav button.on { color: var(--accent); }
+    .bnav button .ni { font-size: 1.2rem; }
 
-    /* ===== Admin Login ===== */
-    .admin-overlay {
+    /* Admin overlay */
+    .admin-ol {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.88);
       z-index: 2000;
       display: none; align-items: center; justify-content: center;
       padding: 20px;
     }
-    .admin-overlay.active { display: flex; }
+    .admin-ol.on { display: flex; }
     .login-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
-      padding: 32px 24px;
-      width: 100%; max-width: 320px;
-      text-align: center;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 30px 22px;
+      width: 100%; max-width: 320px; text-align: center;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .login-box img {
-      width: 60px; height: 60px;
-      border-radius: 50%; border: 2px solid var(--accent);
-      margin-bottom: 16px;
-    }
-    .login-box h2 { color: var(--accent-light); font-size: 1.1rem; margin-bottom: 20px; }
-    .login-box input {
-      width: 100%; padding: 12px 14px; margin-bottom: 10px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border-color);
-      border-radius: 10px; color: var(--text-primary);
-      font-family: inherit; font-size: 0.9rem; outline: none;
-    }
+    .login-box img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--accent); margin-bottom: 14px; }
+    .login-box h2 { color: var(--accent-light); font-size: 1.05rem; margin-bottom: 18px; }
+    .login-box input { width: 100%; padding: 12px 14px; margin-bottom: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; }
     .login-box input:focus { border-color: var(--accent); }
-    .login-box button {
-      width: 100%; padding: 12px;
-      background: var(--accent);
-      color: #fff; border: none;
-      border-radius: 10px; font-family: inherit;
-      font-weight: 700; font-size: 0.95rem;
-      cursor: pointer; margin-top: 4px;
-    }
-    .login-box .err {
-      color: var(--accent-light); font-size: 0.8rem;
-      margin-top: 10px; display: none;
-    }
-    .login-box .err.active { display: block; }
+    .login-box button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 10px; font-family: inherit; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+    .login-box .err { color: var(--accent-light); font-size: 0.8rem; margin-top: 10px; display: none; }
+    .login-box .err.on { display: block; }
 
-    /* ===== Toast ===== */
+    /* Toast */
     .toast {
-      position: fixed; bottom: 86px; left: 50%;
+      position: fixed; bottom: 84px; left: 50%;
       transform: translateX(-50%) translateY(100px);
-      padding: 10px 20px;
-      border-radius: 12px;
-      font-size: 0.85rem; font-weight: 600;
-      z-index: 3000;
-      transition: transform 0.3s ease;
+      padding: 10px 22px; border-radius: 12px;
+      font-size: 0.85rem; font-weight: 700;
+      z-index: 3000; transition: transform 0.3s ease;
       white-space: nowrap;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      background: var(--bg-sec);
+      border: 1px solid var(--border);
+      color: var(--text);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .toast.active { transform: translateX(-50%) translateY(0); }
+    .toast.show { transform: translateX(-50%) translateY(0); }
     .toast.ok { border-color: #27ae60; color: #2ecc71; }
     .toast.bad { border-color: var(--accent); color: var(--accent-light); }
 
-    /* ===== Install Button ===== */
+    /* Install btn */
     .install-btn {
-      position: fixed; top: 16px; left: 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 8px 14px;
-      border-radius: 10px;
-      font-family: inherit; font-weight: 600;
-      font-size: 0.75rem; cursor: pointer;
-      z-index: 50; display: none;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      position: fixed; top: 14px; left: 14px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text2); padding: 7px 14px;
+      border-radius: 10px; font-family: inherit;
+      font-weight: 700; font-size: 0.75rem;
+      cursor: pointer; z-index: 50; display: none;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .install-btn.active { display: block; }
+    .install-btn.on { display: block; }
   </style>
 </head>
 <body>
-  <div class="bg-pattern"></div>
-
+  <div class="bg-glow"></div>
   <button class="install-btn" id="install-btn">📲 تثبيت</button>
 
   <header class="app-header">
     <div class="logo-area" id="app-logo">
-      <img src="icons/icon-192x192.png" alt="شعار" class="logo-img">
+      <img src="icons/logo-new.png" alt="الحشد الفاطمي" class="logo-img">
       <span class="logo-text">الحشد الفاطمي</span>
     </div>
     <div class="header-actions">
@@ -569,64 +405,58 @@
     </div>
   </header>
 
-  <div class="announcement-bar" id="announcement-bar">
+  <div class="ann-bar" id="ann-bar">
     <span class="bell">🔔</span>
-    <span class="text" id="ann-text"></span>
-    <button class="close-ann" onclick="closeAnnouncement()">✕</button>
+    <span class="txt" id="ann-txt"></span>
+    <button class="x" onclick="closeAnn()">✕</button>
   </div>
 
   <div class="search-box">
     <input type="text" id="search-input" placeholder="بحث...">
-    <div class="search-icon">🔍</div>
+    <div class="si">🔍</div>
   </div>
 
-  <!-- HOME -->
-  <div id="page-home" class="page-container active">
+  <div id="page-home" class="page on">
     <div id="home-content"></div>
   </div>
 
-  <!-- Dynamic Pages -->
   <div id="dynamic-pages"></div>
 
-  <!-- ABOUT -->
-  <div id="page-about" class="page-container">
+  <div id="page-about" class="page">
     <div class="breadcrumb">
-      <button class="back-btn" onclick="goHome()">← رجوع</button>
+      <button class="back" onclick="goHome()">← رجوع</button>
     </div>
     <div style="text-align:center;padding:40px 20px 80px;">
-      <img src="icons/icon-192x192.png" alt="" style="width:90px;height:90px;border-radius:24px;border:2px solid var(--accent);margin-bottom:20px;">
-      <h2 style="color:var(--accent-light);margin-bottom:12px;">الحشد الفاطمي</h2>
-      <p style="color:var(--text-secondary);line-height:1.8;font-size:0.9rem;">تطبيق يضم محتوى ديني من الحرمات المقدسة</p>
-      <p style="color:var(--text-muted);font-size:0.8rem;margin-top:20px;">الإصدار 3.0.0.0</p>
+      <img src="icons/logo-new.png" alt="" style="width:100px;height:100px;border-radius:50%;border:3px solid var(--accent);margin-bottom:20px;box-shadow:0 0 20px var(--accent-glow);">
+      <h2 style="color:var(--accent-light);margin-bottom:10px;">الحشد الفاطمي</h2>
+      <p style="color:var(--text2);line-height:1.8;font-size:0.88rem;">محتوى ديني من الحرمات المقدسة</p>
+      <p style="color:var(--text3);font-size:0.78rem;margin-top:24px;">الإصدار 3.0.0.0</p>
     </div>
   </div>
 
-  <!-- Viewer -->
-  <div class="viewer-overlay" id="viewer-overlay">
-    <button class="v-close" id="v-close">✕</button>
-    <div class="v-content" id="v-content"></div>
-    <div class="v-title" id="v-title"></div>
-    <div class="v-actions" id="v-actions"></div>
+  <div class="viewer" id="viewer">
+    <button class="vc" id="vc">✕</button>
+    <div class="vcon" id="vcon"></div>
+    <div class="vt" id="vt"></div>
+    <div class="va" id="va"></div>
   </div>
 
-  <!-- Audio Player -->
-  <div class="player-bar" id="player-bar">
+  <div class="player" id="player">
     <img src="" alt="" id="p-cover">
-    <div class="p-info">
-      <div class="p-title" id="p-title">عنوان</div>
-      <div class="p-progress" id="p-progress"><div class="p-progress-bar" id="p-progress-bar"></div></div>
+    <div class="pi">
+      <div class="pt" id="p-title">عنوان</div>
+      <div class="pp" id="pp"><div class="ppb" id="ppb"></div></div>
     </div>
-    <div class="p-controls">
+    <div class="pc">
       <button id="p-prev">⏮</button>
       <button id="p-play">▶</button>
       <button id="p-next">⏭</button>
     </div>
   </div>
 
-  <!-- Admin Login -->
-  <div class="admin-overlay" id="admin-overlay">
+  <div class="admin-ol" id="admin-ol">
     <div class="login-box">
-      <img src="icons/icon-192x192.png" alt="">
+      <img src="icons/logo-new.png" alt="">
       <h2>لوحة الإدارة</h2>
       <input type="text" id="admin-user" placeholder="اسم المستخدم" autocomplete="off">
       <input type="password" id="admin-pass" placeholder="كلمة المرور" autocomplete="off">
@@ -637,13 +467,13 @@
 
   <div class="toast" id="toast"></div>
 
-  <nav class="bottom-nav">
-    <button class="active" data-page="home" onclick="goHome()">
-      <span class="n-icon">🏠</span>
+  <nav class="bnav">
+    <button class="on" data-page="home" onclick="goHome()">
+      <span class="ni">🏠</span>
       <span>الرئيسية</span>
     </button>
-    <button data-page="about" onclick="navigateTo('about')">
-      <span class="n-icon">ℹ️</span>
+    <button data-page="about" onclick="navTo('about')">
+      <span class="ni">ℹ️</span>
       <span>عن التطبيق</span>
     </button>
   </nav>
