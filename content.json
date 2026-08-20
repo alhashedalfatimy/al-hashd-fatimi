@@ -5,12 +5,7 @@
       "id": "images",
       "name": "الصور",
       "icon": "🖼",
-      "folders": [
-        {
-          "id": "karbala",
-          "name": "كربلاء المقدسة"
-        }
-      ],
+      "folders": [],
       "items": [
         {
           "id": 1,
