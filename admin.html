@@ -3,23 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1a0505">
+  <meta name="theme-color" content="#000000">
   <title>إدارة — الحشد الفاطمي</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-  <link rel="icon" type="image/png" href="icons/icon-72x72.png">
+  <link rel="apple-touch-icon" href="icons/logo-new.png">
+  <link rel="icon" type="image/png" href="icons/logo-new.png">
   <style>
     :root {
-      --bg: #0d0d0d;
-      --card: rgba(25,25,25,0.6);
+      --bg: #000000;
+      --card: rgba(25,25,25,0.65);
       --border: rgba(255,255,255,0.06);
-      --text: #f0f0f0;
-      --text2: #999;
+      --text: #ffffff;
+      --text2: #aaa;
       --text3: #555;
       --accent: #8B0000;
       --accent2: #b30000;
       --gold: #c9a227;
-      --blur: 18px;
+      --blur: 20px;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -29,7 +29,7 @@
     }
     .bg {
       position: fixed; inset: 0; z-index: 0;
-      background: radial-gradient(circle at 30% 20%, rgba(139,0,0,0.06) 0%, transparent 50%);
+      background: radial-gradient(circle at 30% 20%, rgba(139,0,0,0.1) 0%, transparent 50%);
       pointer-events: none;
     }
     .main { position: relative; z-index: 1; min-height: 100vh; padding-bottom: 40px; }
@@ -43,14 +43,14 @@
     }
     .header .title {
       display: flex; align-items: center; gap: 10px;
-      font-weight: 700; font-size: 1.1rem; color: var(--text);
+      font-weight: 800; font-size: 1.05rem; color: var(--text);
     }
-    .header .title img { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--accent); }
+    .header .title img { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
     .logout {
       background: rgba(139,0,0,0.15); color: var(--accent2);
       border: 1px solid rgba(139,0,0,0.3); padding: 7px 16px;
-      border-radius: 8px; font-family: inherit; font-weight: 600;
-      font-size: 0.85rem; cursor: pointer;
+      border-radius: 8px; font-family: inherit; font-weight: 700;
+      font-size: 0.82rem; cursor: pointer;
     }
 
     .breadcrumb {
@@ -61,16 +61,16 @@
       background: var(--card); border: 1px solid var(--border);
       color: var(--text2); padding: 5px 12px;
       border-radius: 8px; font-family: inherit;
-      font-size: 0.8rem; cursor: pointer;
+      font-size: 0.78rem; cursor: pointer;
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
     }
-    .crumb { color: var(--accent2); font-weight: 600; font-size: 0.9rem; }
+    .crumb { color: var(--accent2); font-weight: 700; font-size: 0.88rem; }
     .sep { color: var(--text3); }
 
     .page-title {
       padding: 6px 18px 10px;
-      font-size: 1rem; font-weight: 700;
+      font-size: 0.95rem; font-weight: 800;
     }
 
     .card {
@@ -82,7 +82,7 @@
       -webkit-backdrop-filter: blur(var(--blur));
       transition: all 0.2s;
     }
-    .card:hover { border-color: rgba(139,0,0,0.3); transform: translateX(-2px); }
+    .card:hover { border-color: rgba(139,0,0,0.35); transform: translateX(-2px); }
     .card .info { display: flex; align-items: center; gap: 12px; }
     .card .icon {
       width: 44px; height: 44px;
@@ -91,8 +91,8 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 1.4rem;
     }
-    .card .name { font-weight: 700; font-size: 0.95rem; }
-    .card .meta { font-size: 0.75rem; color: var(--text2); margin-top: 2px; }
+    .card .name { font-weight: 800; font-size: 0.92rem; }
+    .card .meta { font-size: 0.74rem; color: var(--text2); margin-top: 2px; }
     .card .actions { display: flex; gap: 5px; }
     .card .actions button {
       width: 34px; height: 34px;
@@ -106,10 +106,10 @@
     .fab {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       margin: 14px 16px; padding: 14px;
-      background: rgba(139,0,0,0.08);
+      background: rgba(139,0,0,0.06);
       border: 1.5px dashed var(--accent);
       border-radius: 14px; color: var(--accent2);
-      font-weight: 700; font-size: 0.9rem;
+      font-weight: 800; font-size: 0.88rem;
       cursor: pointer; font-family: inherit;
     }
 
@@ -128,7 +128,7 @@
       font-size: 1.3rem;
     }
     .media-row .minfo { flex: 1; min-width: 0; }
-    .media-row .mtitle { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .media-row .mtitle { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .media-row .mdesc { font-size: 0.72rem; color: var(--text2); }
     .media-row .del {
       width: 34px; height: 34px;
@@ -139,7 +139,7 @@
 
     .upload-zone {
       margin: 14px 16px; padding: 28px 20px;
-      border: 2px dashed rgba(139,0,0,0.25);
+      border: 2px dashed rgba(139,0,0,0.22);
       border-radius: 14px; text-align: center;
       cursor: pointer; background: rgba(139,0,0,0.02);
     }
@@ -148,11 +148,11 @@
     .upload-zone .u-text { color: var(--text2); font-size: 0.85rem; }
 
     .empty { text-align: center; padding: 50px 20px; color: var(--text3); }
-    .empty .ei { font-size: 3rem; margin-bottom: 10px; opacity: 0.4; }
+    .empty .ei { font-size: 3rem; margin-bottom: 10px; opacity: 0.35; }
 
     .modal-bg {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.88);
+      background: rgba(0,0,0,0.9);
       z-index: 1000; display: none;
       align-items: center; justify-content: center;
       padding: 20px;
@@ -173,10 +173,10 @@
     }
     .modal-box h3 {
       color: var(--accent2); font-size: 1.05rem;
-      font-weight: 700; margin-bottom: 16px; text-align: center;
+      font-weight: 800; margin-bottom: 16px; text-align: center;
     }
     .fg { margin-bottom: 12px; }
-    .fg label { display: block; color: var(--text2); font-size: 0.8rem; margin-bottom: 5px; }
+    .fg label { display: block; color: var(--text2); font-size: 0.78rem; margin-bottom: 5px; }
     .fg input, .fg select {
       width: 100%; padding: 11px 13px;
       border-radius: 10px; border: 1px solid var(--border);
@@ -193,7 +193,7 @@
       width: 100%; padding: 13px;
       background: var(--accent); color: #fff;
       border: none; border-radius: 10px;
-      font-family: inherit; font-weight: 700;
+      font-family: inherit; font-weight: 800;
       font-size: 0.95rem; cursor: pointer; margin-top: 4px;
     }
 
@@ -201,7 +201,7 @@
       position: fixed; bottom: 22px; left: 50%;
       transform: translateX(-50%) translateY(100px);
       padding: 10px 22px; border-radius: 12px;
-      font-weight: 600; font-size: 0.85rem;
+      font-weight: 700; font-size: 0.85rem;
       z-index: 2000; transition: transform 0.3s;
       white-space: nowrap;
       background: var(--card); border: 1px solid var(--border);
@@ -219,7 +219,7 @@
   <div class="main" id="main">
     <div class="header">
       <div class="title">
-        <img src="icons/icon-192x192.png" alt="">
+        <img src="icons/logo-new.png" alt="">
         <span>إدارة المحتوى</span>
       </div>
       <button class="logout" id="logout">خروج</button>
