@@ -3,280 +3,234 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0c0c0c">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>لوحة الإدارة - الحشد الفاطمي</title>
+  <meta name="theme-color" content="#1a0505">
+  <title>إدارة — الحشد الفاطمي</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192x192.png">
   <link rel="icon" type="image/png" href="icons/icon-72x72.png">
   <style>
     :root {
-      --gold: #d4af37;
-      --gold-light: #f0d878;
-      --gold-dark: #b8962e;
-      --primary-black: #0c0c0c;
-      --secondary-black: #1a1a1a;
-      --card-bg: rgba(26,26,26,0.9);
-      --glass-bg: rgba(26,26,26,0.7);
-      --glass-border: rgba(212,175,55,0.15);
-      --text-primary: #f5f5f5;
-      --text-secondary: #a0a0a0;
-      --text-muted: #666;
-      --danger: #c0392b;
-      --success: #27ae60;
+      --bg: #0d0d0d;
+      --card: rgba(25,25,25,0.6);
+      --border: rgba(255,255,255,0.06);
+      --text: #f0f0f0;
+      --text2: #999;
+      --text3: #555;
+      --accent: #8B0000;
+      --accent2: #b30000;
+      --gold: #c9a227;
+      --blur: 18px;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Segoe UI', 'Tahoma', sans-serif;
-      background: var(--primary-black);
-      color: var(--text-primary);
-      min-height: 100vh;
-      overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; overflow-x: hidden;
     }
-    .bg-gradient {
-      position: fixed; inset: 0;
-      background: radial-gradient(ellipse at top, rgba(212,175,55,0.06) 0%, transparent 60%);
-      pointer-events: none; z-index: 0;
+    .bg {
+      position: fixed; inset: 0; z-index: 0;
+      background: radial-gradient(circle at 30% 20%, rgba(139,0,0,0.06) 0%, transparent 50%);
+      pointer-events: none;
     }
-    .admin-main { position: relative; z-index: 1; min-height: 100vh; padding-bottom: 40px; }
+    .main { position: relative; z-index: 1; min-height: 100vh; padding-bottom: 40px; }
 
-    /* Header */
-    .admin-header {
+    .header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--glass-border);
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .admin-header .title {
-      display: flex; align-items: center; gap: 12px;
-      color: var(--gold); font-weight: 700; font-size: 1.2rem;
-    }
-    .admin-header .title img {
-      width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--gold);
-    }
-    .logout-btn {
-      background: rgba(192,57,43,0.15);
-      color: #e74c3c; border: 1px solid rgba(192,57,43,0.3);
-      padding: 8px 18px; border-radius: 8px;
-      font-family: inherit; cursor: pointer; font-weight: 600;
-    }
-
-    /* Breadcrumb */
-    .breadcrumb {
+    .header .title {
       display: flex; align-items: center; gap: 10px;
-      padding: 12px 20px; margin: 8px 0;
+      font-weight: 700; font-size: 1.1rem; color: var(--text);
     }
-    .back-btn {
-      background: rgba(212,175,55,0.1);
-      border: 1px solid rgba(212,175,55,0.2);
-      color: var(--gold); padding: 6px 14px;
+    .header .title img { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--accent); }
+    .logout {
+      background: rgba(139,0,0,0.15); color: var(--accent2);
+      border: 1px solid rgba(139,0,0,0.3); padding: 7px 16px;
+      border-radius: 8px; font-family: inherit; font-weight: 600;
+      font-size: 0.85rem; cursor: pointer;
+    }
+
+    .breadcrumb {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px; margin-top: 4px;
+    }
+    .back {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text2); padding: 5px 12px;
       border-radius: 8px; font-family: inherit;
-      font-weight: 600; font-size: 0.85rem; cursor: pointer;
+      font-size: 0.8rem; cursor: pointer;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .crumb { color: var(--gold); font-weight: 600; }
-    .crumb-sep { color: var(--text-muted); }
+    .crumb { color: var(--accent2); font-weight: 600; font-size: 0.9rem; }
+    .sep { color: var(--text3); }
 
-    /* Page Title */
     .page-title {
-      padding: 8px 20px 12px;
-      font-size: 1.1rem; font-weight: 700; color: var(--text-primary);
+      padding: 6px 18px 10px;
+      font-size: 1rem; font-weight: 700;
     }
 
-    /* Cards */
-    .admin-card {
+    .card {
       display: flex; align-items: center; justify-content: space-between;
-      background: var(--card-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 14px;
-      padding: 16px 20px;
-      margin: 8px 16px;
-      cursor: pointer;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 18px;
+      margin: 6px 16px; cursor: pointer;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       transition: all 0.2s;
     }
-    .admin-card:hover {
-      border-color: rgba(212,175,55,0.3);
-      transform: translateX(-3px);
-    }
-    .card-info {
-      display: flex; align-items: center; gap: 14px;
-    }
-    .card-icon {
-      width: 48px; height: 48px;
-      background: rgba(212,175,55,0.1);
+    .card:hover { border-color: rgba(139,0,0,0.3); transform: translateX(-2px); }
+    .card .info { display: flex; align-items: center; gap: 12px; }
+    .card .icon {
+      width: 44px; height: 44px;
+      background: rgba(139,0,0,0.1);
       border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.6rem;
-    }
-    .card-name { font-weight: 700; color: var(--text-primary); font-size: 1rem; }
-    .card-meta { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
-    .card-actions {
-      display: flex; gap: 6px;
-    }
-    .action-btn {
-      width: 36px; height: 36px;
-      border-radius: 8px; border: none;
-      font-size: 1rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .action-btn.edit { background: rgba(212,175,55,0.15); }
-    .action-btn.delete { background: rgba(192,57,43,0.15); }
-
-    /* Add FAB */
-    .add-fab {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      margin: 16px;
-      padding: 16px;
-      background: linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05));
-      border: 2px dashed var(--gold);
-      border-radius: 14px;
-      color: var(--gold);
-      font-weight: 700; font-size: 0.95rem;
-      cursor: pointer; font-family: inherit;
-      transition: all 0.2s;
-    }
-    .add-fab:hover { background: linear-gradient(135deg, rgba(212,175,55,0.25), rgba(212,175,55,0.1)); }
-
-    /* Media Item Card */
-    .media-item-card {
-      display: flex; align-items: center; gap: 12px;
-      background: var(--card-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin: 8px 16px;
-    }
-    .media-item-card img, .thumb-placeholder {
-      width: 56px; height: 56px;
-      border-radius: 10px; object-fit: cover;
-      background: rgba(255,255,255,0.05);
       display: flex; align-items: center; justify-content: center;
       font-size: 1.4rem;
     }
-    .media-info { flex: 1; min-width: 0; }
-    .media-title {
-      font-weight: 600; font-size: 0.9rem;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    .card .name { font-weight: 700; font-size: 0.95rem; }
+    .card .meta { font-size: 0.75rem; color: var(--text2); margin-top: 2px; }
+    .card .actions { display: flex; gap: 5px; }
+    .card .actions button {
+      width: 34px; height: 34px;
+      border-radius: 8px; border: none;
+      font-size: 0.9rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
     }
-    .media-desc { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
-    .delete-btn {
-      width: 36px; height: 36px;
-      background: rgba(192,57,43,0.15);
-      border: none; border-radius: 8px;
-      color: #e74c3c; font-size: 1rem;
+    .card .actions .ed { background: rgba(201,162,39,0.12); }
+    .card .actions .del { background: rgba(139,0,0,0.15); color: var(--accent2); }
+
+    .fab {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin: 14px 16px; padding: 14px;
+      background: rgba(139,0,0,0.08);
+      border: 1.5px dashed var(--accent);
+      border-radius: 14px; color: var(--accent2);
+      font-weight: 700; font-size: 0.9rem;
+      cursor: pointer; font-family: inherit;
+    }
+
+    .media-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 14px;
+      margin: 6px 16px;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+    }
+    .media-row img, .media-row .ph {
+      width: 50px; height: 50px; border-radius: 10px;
+      object-fit: cover; background: rgba(255,255,255,0.04);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+    }
+    .media-row .minfo { flex: 1; min-width: 0; }
+    .media-row .mtitle { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .media-row .mdesc { font-size: 0.72rem; color: var(--text2); }
+    .media-row .del {
+      width: 34px; height: 34px;
+      background: rgba(139,0,0,0.15); color: var(--accent2);
+      border: none; border-radius: 8px; font-size: 0.9rem;
       cursor: pointer;
     }
 
-    /* Upload Area */
-    .upload-area {
-      margin: 16px;
-      padding: 32px 20px;
-      border: 2px dashed rgba(212,175,55,0.25);
-      border-radius: 14px;
-      text-align: center;
-      cursor: pointer;
-      background: rgba(212,175,55,0.03);
-      transition: all 0.2s;
+    .upload-zone {
+      margin: 14px 16px; padding: 28px 20px;
+      border: 2px dashed rgba(139,0,0,0.25);
+      border-radius: 14px; text-align: center;
+      cursor: pointer; background: rgba(139,0,0,0.02);
     }
-    .upload-area:hover { border-color: var(--gold); background: rgba(212,175,55,0.06); }
-    .upload-icon { font-size: 2rem; margin-bottom: 8px; }
-    .upload-text { color: var(--text-secondary); font-size: 0.9rem; }
+    .upload-zone:hover { border-color: var(--accent); background: rgba(139,0,0,0.04); }
+    .upload-zone .u-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .upload-zone .u-text { color: var(--text2); font-size: 0.85rem; }
 
-    /* Empty State */
-    .empty-state {
-      text-align: center; padding: 50px 20px;
-      color: var(--text-secondary);
-    }
-    .empty-state .icon { font-size: 3.5rem; margin-bottom: 12px; opacity: 0.5; }
-    .empty-state .text { font-size: 1rem; }
+    .empty { text-align: center; padding: 50px 20px; color: var(--text3); }
+    .empty .ei { font-size: 3rem; margin-bottom: 10px; opacity: 0.4; }
 
-    /* Modal */
-    .modal-overlay {
+    .modal-bg {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.9);
-      z-index: 1000;
-      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.88);
+      z-index: 1000; display: none;
+      align-items: center; justify-content: center;
       padding: 20px;
     }
-    .modal-overlay.active { display: flex; }
-    .modal-content {
-      width: 100%; max-width: 400px;
-      background: var(--card-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 24px;
+    .modal-bg.on { display: flex; }
+    .modal-box {
+      width: 100%; max-width: 380px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 22px;
       position: relative;
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .modal-close {
-      position: absolute; top: 16px; left: 16px;
+    .modal-box .x {
+      position: absolute; top: 14px; left: 14px;
       background: none; border: none;
-      color: var(--text-secondary); font-size: 1.2rem;
-      cursor: pointer;
+      color: var(--text3); font-size: 1.1rem; cursor: pointer;
     }
-    .modal-title {
-      color: var(--gold); font-size: 1.15rem;
-      font-weight: 700; margin-bottom: 20px;
-      text-align: center;
+    .modal-box h3 {
+      color: var(--accent2); font-size: 1.05rem;
+      font-weight: 700; margin-bottom: 16px; text-align: center;
     }
-    .form-group { margin-bottom: 14px; }
-    .form-label {
-      display: block; color: var(--text-secondary);
-      font-size: 0.85rem; margin-bottom: 6px;
+    .fg { margin-bottom: 12px; }
+    .fg label { display: block; color: var(--text2); font-size: 0.8rem; margin-bottom: 5px; }
+    .fg input, .fg select {
+      width: 100%; padding: 11px 13px;
+      border-radius: 10px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--text);
+      font-family: inherit; font-size: 0.9rem; outline: none;
     }
-    .form-input, .form-select {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid rgba(212,175,55,0.25);
-      background: rgba(255,255,255,0.05);
-      color: var(--text-primary);
-      font-family: inherit; font-size: 0.95rem;
-      outline: none;
+    .fg input:focus, .fg select:focus { border-color: var(--accent); }
+    .fg .chk {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text2); font-size: 0.85rem; cursor: pointer;
     }
-    .form-input:focus, .form-select:focus { border-color: var(--gold); }
-    .submit-btn {
-      width: 100%; padding: 14px;
-      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-      color: var(--primary-black);
+    .fg .chk input { width: auto; }
+    .save {
+      width: 100%; padding: 13px;
+      background: var(--accent); color: #fff;
       border: none; border-radius: 10px;
       font-family: inherit; font-weight: 700;
-      font-size: 1rem; cursor: pointer;
+      font-size: 0.95rem; cursor: pointer; margin-top: 4px;
     }
 
-    /* Toast */
     .toast {
-      position: fixed; bottom: 24px; left: 50%;
+      position: fixed; bottom: 22px; left: 50%;
       transform: translateX(-50%) translateY(100px);
-      padding: 12px 24px;
-      border-radius: 12px;
-      color: white; font-weight: 600;
-      z-index: 2000;
-      transition: transform 0.3s;
+      padding: 10px 22px; border-radius: 12px;
+      font-weight: 600; font-size: 0.85rem;
+      z-index: 2000; transition: transform 0.3s;
       white-space: nowrap;
-      background: var(--secondary-black);
-      border: 1px solid var(--glass-border);
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
-    .toast.active { transform: translateX(-50%) translateY(0); }
-    .toast.success { border-color: var(--success); color: #2ecc71; }
-    .toast.error { border-color: var(--danger); color: #e74c3c; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.ok { border-color: #27ae60; color: #2ecc71; }
+    .toast.bad { border-color: var(--accent); color: var(--accent2); }
   </style>
 </head>
 <body>
-  <div class="bg-gradient"></div>
-  <div class="admin-main" id="admin-main">
-    <div class="admin-header">
+  <div class="bg"></div>
+  <div class="main" id="main">
+    <div class="header">
       <div class="title">
-        <img src="icons/icon-192x192.png" alt="شعار">
-        <span>لوحة الإدارة</span>
+        <img src="icons/icon-192x192.png" alt="">
+        <span>إدارة المحتوى</span>
       </div>
-      <button class="logout-btn" id="admin-logout">خروج</button>
+      <button class="logout" id="logout">خروج</button>
     </div>
-    <div id="admin-view"></div>
+    <div id="view"></div>
   </div>
 
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal-content">
-      <button class="modal-close" id="modal-close">✕</button>
-      <h3 class="modal-title" id="modal-title">عنوان</h3>
+  <div class="modal-bg" id="modal-bg">
+    <div class="modal-box">
+      <button class="x" id="modal-x">✕</button>
+      <h3 id="modal-title">عنوان</h3>
       <div id="modal-body"></div>
     </div>
   </div>
