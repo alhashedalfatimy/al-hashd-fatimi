@@ -1,5 +1,5 @@
-const CACHE_NAME = 'al-hashd-fatimi-v3';
-const STATIC_ASSETS = [
+const CACHE = 'alhashd-v3';
+const ASSETS = [
   '/al-hashd-fatimi/',
   '/al-hashd-fatimi/index.html',
   '/al-hashd-fatimi/admin.html',
@@ -12,70 +12,44 @@ const STATIC_ASSETS = [
   '/al-hashd-fatimi/icons/icon-512x512.png'
 ];
 
-const NEVER_CACHE = ['/al-hashd-fatimi/content.json'];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    }).then(() => self.skipWaiting())
-  );
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+  ).then(() => self.clients.claim()));
 });
 
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
+self.addEventListener('fetch', e => {
+  const { request } = e;
   const url = new URL(request.url);
 
-  if (NEVER_CACHE.some(path => url.pathname.includes(path))) {
-    event.respondWith(
-      fetch(request, { cache: 'no-store' }).catch(() => {
-        return new Response('{"sections":[],"announcements":[]}', {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
+  if (url.pathname.includes('content.json')) {
+    e.respondWith(fetch(request, { cache: 'no-store' }).catch(() =>
+      new Response('{"version":"3.0.0.0","sections":[],"announcements":[]}', { headers: { 'Content-Type': 'application/json' } })
+    ));
     return;
   }
 
   if (request.method !== 'GET') return;
 
   if (request.url.match(/\.(jpg|jpeg|png|gif|webp|mp4|mp3|webm|ogg)$/)) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        }).catch(() => cached);
-      })
-    );
+    e.respondWith(caches.match(request).then(cached => {
+      if (cached) return cached;
+      return fetch(request).then(r => { const clone = r.clone(); caches.open(CACHE).then(c => c.put(request, clone)); return r; }).catch(() => cached);
+    }));
     return;
   }
 
-  event.respondWith(
-    fetch(request).then((response) => {
-      const clone = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-      return response;
-    }).catch(() => {
-      return caches.match(request).then((cached) => {
-        if (cached) return cached;
-        if (request.mode === 'navigate') {
-          return caches.match('/al-hashd-fatimi/index.html');
-        }
-        return new Response('Offline', { status: 503 });
-      });
-    })
-  );
+  e.respondWith(fetch(request).then(r => {
+    const clone = r.clone();
+    caches.open(CACHE).then(c => c.put(request, clone));
+    return r;
+  }).catch(() => caches.match(request).then(c => {
+    if (c) return c;
+    if (request.mode === 'navigate') return caches.match('/al-hashd-fatimi/index.html');
+    return new Response('Offline', { status: 503 });
+  })));
 });
