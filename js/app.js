@@ -51,6 +51,7 @@ async function loadData() {
       if (!allData.sections) allData = { version: '3.0.0.0', sections: [], announcements: [] };
     }
   } catch (e) {
+    console.error('Load error:', e);
     allData = { version: '3.0.0.0', sections: [], announcements: [] };
   }
 }
@@ -61,53 +62,54 @@ function renderHome() {
   const sections = allData.sections || [];
 
   let html = '';
-  sections.forEach(sec => {
-    const folders = sec.folders || [];
-    const items = sec.items || [];
-    const total = items.length;
-
-    html += `
-      <div class="section-group">
-        <div class="section-header-row">
-          <div class="section-label">
-            <span class="sec-icon">${sec.icon || '📁'}</span>
-            <span>${escapeHtml(sec.name)}</span>
-          </div>
-          <span class="section-count">${total}</span>
-        </div>
-        <div class="folders-scroll">
-    `;
-
-    if (folders.length === 0) {
-      html += `
-        <div class="folder-chip empty" onclick="toast('لا توجد مجلدات في هذا القسم', 'bad')">
-          <div class="f-icon">📂</div>
-          <div class="f-name">فارغ</div>
-        </div>
-      `;
-    } else {
-      folders.forEach(f => {
-        const count = items.filter(i => i.folderId === f.id).length;
-        html += `
-          <div class="folder-chip" onclick="openFolder('${sec.id}', '${f.id}')">
-            <div class="f-icon">📁</div>
-            <div class="f-name">${escapeHtml(f.name)}</div>
-            <div class="f-count">${count} عنصر</div>
-          </div>
-        `;
-      });
-    }
-
-    html += `</div></div>`;
-  });
 
   if (sections.length === 0) {
     html = `
-      <div class="empty-state">
-        <div class="e-icon">📂</div>
-        <div class="e-text">لا توجد أقسام بعد</div>
+      <div class="empty">
+        <div class="ei">📂</div>
+        <div class="et">لا توجد أقسام بعد</div>
       </div>
     `;
+  } else {
+    sections.forEach(sec => {
+      const folders = sec.folders || [];
+      const items = sec.items || [];
+      const total = items.length;
+
+      html += `
+        <div class="sec-group">
+          <div class="sec-header">
+            <div class="sec-label">
+              <span class="ic">${sec.icon || '📁'}</span>
+              <span>${escapeHtml(sec.name)}</span>
+            </div>
+            <span class="sec-count">${total}</span>
+          </div>
+          <div class="folders-row">
+      `;
+
+      if (folders.length === 0) {
+        html += `
+          <div class="folder-chip empty" onclick="toast('لا توجد مجلدات', 'bad')">
+            <div class="fic">📂</div>
+            <div class="fnm">فارغ</div>
+          </div>
+        `;
+      } else {
+        folders.forEach(f => {
+          const count = items.filter(i => i.folderId === f.id).length;
+          html += `
+            <div class="folder-chip" onclick="openFolder('${sec.id}', '${f.id}')">
+              <div class="fic">📁</div>
+              <div class="fnm">${escapeHtml(f.name)}</div>
+              <div class="fcnt">${count} عنصر</div>
+            </div>
+          `;
+        });
+      }
+
+      html += `</div></div>`;
+    });
   }
 
   container.innerHTML = html;
@@ -115,30 +117,34 @@ function renderHome() {
 
 // ===== Announcement =====
 function showAnnouncement() {
-  const bar = document.getElementById('announcement-bar');
-  const text = document.getElementById('ann-text');
+  const bar = document.getElementById('ann-bar');
+  const txt = document.getElementById('ann-txt');
   const anns = (allData.announcements || []).filter(a => a.active);
 
-  if (anns.length === 0) { bar.classList.remove('active'); return; }
-  text.textContent = anns[0].title + (anns[0].text ? ' — ' + anns[0].text : '');
-  bar.classList.add('active');
+  if (anns.length === 0) {
+    bar.classList.remove('on');
+    return;
+  }
+
+  txt.textContent = anns[0].title + (anns[0].text ? ' — ' + anns[0].text : '');
+  bar.classList.add('on');
 }
 
-function closeAnnouncement() {
-  document.getElementById('announcement-bar').classList.remove('active');
+function closeAnn() {
+  document.getElementById('ann-bar').classList.remove('on');
 }
 
 // ===== Navigation =====
-function navigateTo(page) {
+function navTo(page) {
   currentPage = page;
-  document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
 
   const target = document.getElementById('page-' + page);
-  if (target) target.classList.add('active');
+  if (target) target.classList.add('on');
 
-  const btn = document.querySelector(`.bottom-nav button[data-page="${page}"]`);
-  if (btn) btn.classList.add('active');
+  const btn = document.querySelector(`.bnav button[data-page="${page}"]`);
+  if (btn) btn.classList.add('on');
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -146,7 +152,7 @@ function navigateTo(page) {
 function goHome() {
   currentSecId = null;
   currentFoldId = null;
-  navigateTo('home');
+  navTo('home');
   renderHome();
 }
 
@@ -162,54 +168,54 @@ function openFolder(secId, foldId) {
   if (!page) {
     page = document.createElement('div');
     page.id = 'page-' + secId + '-' + foldId;
-    page.className = 'page-container';
+    page.className = 'page';
     document.getElementById('dynamic-pages').appendChild(page);
   }
 
-  document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
-  page.classList.add('active');
-  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  page.classList.add('on');
+  document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
 
   const items = (sec.items || []).filter(i => i.folderId === foldId && i.visibility !== 'private');
 
   let html = `
     <div class="breadcrumb">
-      <button class="back-btn" onclick="goHome()">← رجوع</button>
+      <button class="back" onclick="goHome()">← رجوع</button>
       <span class="crumb">${escapeHtml(fold.name)}</span>
     </div>
   `;
 
   if (sec.id === 'audios') {
-    html += `<div class="audio-list">`;
+    html += `<div class="a-list">`;
     if (items.length === 0) {
-      html += `<div class="empty-state"><div class="e-icon">🎧</div><div class="e-text">لا توجد مقاطع</div></div>`;
+      html += `<div class="empty"><div class="ei">🎧</div><div class="et">لا توجد مقاطع</div></div>`;
     } else {
       items.forEach((item, idx) => {
         html += `
-          <div class="audio-row" data-idx="${idx}">
+          <div class="a-row" data-idx="${idx}">
             <img src="${item.cover || 'https://via.placeholder.com/48'}" alt="" onerror="this.style.display='none'">
-            <div class="a-info">
-              <div class="a-title">${escapeHtml(item.title)}</div>
-              <div class="a-desc">${escapeHtml(item.description || '')}</div>
+            <div class="ai">
+              <div class="at">${escapeHtml(item.title)}</div>
+              <div class="ad">${escapeHtml(item.description || '')}</div>
             </div>
-            <button class="a-play">▶</button>
+            <button class="ap">▶</button>
           </div>
         `;
       });
     }
     html += `</div>`;
   } else {
-    html += `<div class="media-grid">`;
+    html += `<div class="m-grid">`;
     if (items.length === 0) {
-      html += `<div class="empty-state"><div class="e-icon">📂</div><div class="e-text">لا يوجد محتوى</div></div>`;
+      html += `<div class="empty"><div class="ei">📂</div><div class="et">لا يوجد محتوى</div></div>`;
     } else {
       items.forEach(item => {
         html += `
-          <div class="media-card" data-id="${item.id}" style="position:relative;">
+          <div class="m-card" data-id="${item.id}" style="position:relative;">
             <img src="${item.thumbnail || item.url}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300/1a1a1a/666?text=${encodeURIComponent(item.title)}'">
-            <div class="m-info">
-              <div class="m-title">${escapeHtml(item.title)}</div>
-              <div class="m-desc">${escapeHtml(item.description || '')}</div>
+            <div class="mi">
+              <div class="mt">${escapeHtml(item.title)}</div>
+              <div class="md">${escapeHtml(item.description || '')}</div>
             </div>
           </div>
         `;
@@ -223,20 +229,20 @@ function openFolder(secId, foldId) {
 
   if (sec.id === 'audios') {
     audioItems = items;
-    page.querySelectorAll('.audio-row').forEach(row => {
+    page.querySelectorAll('.a-row').forEach(row => {
       row.addEventListener('click', (e) => {
-        if (e.target.closest('.a-play')) return;
+        if (e.target.closest('.ap')) return;
         playAudio(parseInt(row.dataset.idx));
       });
     });
-    page.querySelectorAll('.a-play').forEach(btn => {
+    page.querySelectorAll('.ap').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        playAudio(parseInt(btn.closest('.audio-row').dataset.idx));
+        playAudio(parseInt(btn.closest('.a-row').dataset.idx));
       });
     });
   } else {
-    page.querySelectorAll('.media-card').forEach(card => {
+    page.querySelectorAll('.m-card').forEach(card => {
       card.addEventListener('click', () => {
         const id = parseInt(card.dataset.id);
         openViewer(id, items);
@@ -250,16 +256,17 @@ function openViewer(id, items) {
   mediaList = items;
   mediaIdx = items.findIndex(i => i.id === id);
   if (mediaIdx === -1) return;
+
   updateViewer();
-  document.getElementById('viewer-overlay').classList.add('active');
+  document.getElementById('viewer').classList.add('on');
   document.body.style.overflow = 'hidden';
 }
 
 function updateViewer() {
   const item = mediaList[mediaIdx];
-  const content = document.getElementById('v-content');
-  const title = document.getElementById('v-title');
-  const actions = document.getElementById('v-actions');
+  const content = document.getElementById('vcon');
+  const title = document.getElementById('vt');
+  const actions = document.getElementById('va');
 
   title.textContent = item.title;
 
@@ -271,7 +278,7 @@ function updateViewer() {
 
   let btns = '';
   if (item.allowDownload !== false) {
-    btns += `<button class="primary" onclick="dlCurrent()">⬇️ تنزيل</button>`;
+    btns += `<button class="pri" onclick="dlCurrent()">⬇️ تنزيل</button>`;
   }
   if (item.allowShare !== false) {
     btns += `<button onclick="shareCurrent()">🔗 مشاركة</button>`;
@@ -280,9 +287,9 @@ function updateViewer() {
 }
 
 function closeViewer() {
-  document.getElementById('viewer-overlay').classList.remove('active');
+  document.getElementById('viewer').classList.remove('on');
   document.body.style.overflow = '';
-  const v = document.querySelector('#v-content video');
+  const v = document.querySelector('#vcon video');
   if (v) v.pause();
 }
 
@@ -326,7 +333,7 @@ function playAudio(idx) {
     audioEl.addEventListener('timeupdate', () => {
       if (!audioEl.duration) return;
       const pct = (audioEl.currentTime / audioEl.duration) * 100;
-      document.getElementById('p-progress-bar').style.width = pct + '%';
+      document.getElementById('ppb').style.width = pct + '%';
     });
     audioEl.addEventListener('ended', () => playAudio((audioIdx + 1) % audioItems.length));
   }
@@ -338,7 +345,7 @@ function playAudio(idx) {
   document.getElementById('p-cover').src = item.cover || 'https://via.placeholder.com/40';
   document.getElementById('p-title').textContent = item.title;
   document.getElementById('p-play').textContent = '⏸';
-  document.getElementById('player-bar').classList.add('active');
+  document.getElementById('player').classList.add('on');
 }
 
 function togglePlay() {
@@ -383,32 +390,32 @@ function doSearch(e) {
   if (!page) {
     page = document.createElement('div');
     page.id = 'page-search';
-    page.className = 'page-container';
+    page.className = 'page';
     document.getElementById('dynamic-pages').appendChild(page);
   }
 
-  document.querySelectorAll('.page-container').forEach(p => p.classList.remove('active'));
-  page.classList.add('active');
-  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  page.classList.add('on');
+  document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
 
   let html = `
     <div class="breadcrumb">
-      <button class="back-btn" onclick="goHome()">← رجوع</button>
+      <button class="back" onclick="goHome()">← رجوع</button>
       <span class="crumb">نتائج البحث</span>
     </div>
   `;
 
   if (results.length === 0) {
-    html += `<div class="empty-state"><div class="e-icon">🔍</div><div class="e-text">لا توجد نتائج</div></div>`;
+    html += `<div class="empty"><div class="ei">🔍</div><div class="et">لا توجد نتائج</div></div>`;
   } else {
-    html += `<div class="media-grid">`;
+    html += `<div class="m-grid">`;
     results.forEach(item => {
       html += `
-        <div class="media-card" data-id="${item.id}" style="position:relative;">
+        <div class="m-card" data-id="${item.id}" style="position:relative;">
           <img src="${item.thumbnail || item.url}" alt="" loading="lazy" onerror="this.style.display='none'">
-          <div class="m-info">
-            <div class="m-title">${escapeHtml(item.title)}</div>
-            <div class="m-desc">${escapeHtml(item.secName)}</div>
+          <div class="mi">
+            <div class="mt">${escapeHtml(item.title)}</div>
+            <div class="md">${escapeHtml(item.secName)}</div>
           </div>
         </div>
       `;
@@ -417,7 +424,7 @@ function doSearch(e) {
   }
 
   page.innerHTML = html;
-  page.querySelectorAll('.media-card').forEach(card => {
+  page.querySelectorAll('.m-card').forEach(card => {
     card.addEventListener('click', () => openViewer(parseInt(card.dataset.id), results));
   });
 }
@@ -427,7 +434,7 @@ function onLogoClick() {
   logoClicks++;
   if (logoClicks >= 5) {
     logoClicks = 0;
-    document.getElementById('admin-overlay').classList.add('active');
+    document.getElementById('admin-ol').classList.add('on');
     document.getElementById('admin-user').focus();
   }
   setTimeout(() => { logoClicks = 0; }, 2000);
@@ -436,7 +443,7 @@ function onLogoClick() {
 function onLogoPressStart(e) {
   e.preventDefault();
   logoTimer = setTimeout(() => {
-    document.getElementById('admin-overlay').classList.add('active');
+    document.getElementById('admin-ol').classList.add('on');
     document.getElementById('admin-user').focus();
   }, 8000);
 }
@@ -453,7 +460,7 @@ function adminLogin() {
     sessionStorage.setItem('admin_auth', 'true');
     window.location.href = 'admin.html';
   } else {
-    document.getElementById('admin-err').classList.add('active');
+    document.getElementById('admin-err').classList.add('on');
     document.getElementById('admin-pass').value = '';
   }
 }
@@ -466,11 +473,11 @@ function setupPWA() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     installPrompt = e;
-    document.getElementById('install-btn').classList.add('active');
+    document.getElementById('install-btn').classList.add('on');
   });
   window.addEventListener('appinstalled', () => {
     installPrompt = null;
-    document.getElementById('install-btn').classList.remove('active');
+    document.getElementById('install-btn').classList.remove('on');
     toast('تم التثبيت', 'ok');
   });
 }
@@ -481,7 +488,7 @@ async function installApp() {
   const r = await installPrompt.userChoice;
   if (r.outcome === 'accepted') toast('تم التثبيت', 'ok');
   installPrompt = null;
-  document.getElementById('install-btn').classList.remove('active');
+  document.getElementById('install-btn').classList.remove('on');
 }
 
 // ===== Events =====
@@ -496,16 +503,16 @@ function setupEvents() {
 
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
   document.getElementById('search-input').addEventListener('input', debounce(doSearch, 300));
-  document.getElementById('v-close').addEventListener('click', closeViewer);
+  document.getElementById('vc').addEventListener('click', closeViewer);
   document.getElementById('p-play').addEventListener('click', togglePlay);
   document.getElementById('p-prev').addEventListener('click', prevAudio);
   document.getElementById('p-next').addEventListener('click', nextAudio);
-  document.getElementById('p-progress').addEventListener('click', seekAudio);
+  document.getElementById('pp').addEventListener('click', seekAudio);
   document.getElementById('admin-login').addEventListener('click', adminLogin);
   document.getElementById('install-btn').addEventListener('click', installApp);
 
-  document.getElementById('admin-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'admin-overlay') document.getElementById('admin-overlay').classList.remove('active');
+  document.getElementById('admin-ol').addEventListener('click', (e) => {
+    if (e.target.id === 'admin-ol') document.getElementById('admin-ol').classList.remove('on');
   });
 
   document.addEventListener('keydown', (e) => {
@@ -530,6 +537,6 @@ function toast(msg, type) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.className = 'toast ' + type;
-  el.classList.add('active');
-  setTimeout(() => el.classList.remove('active'), 2500);
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
 }
