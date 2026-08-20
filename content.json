@@ -43,18 +43,12 @@
       "id": "videos",
       "name": "الفيديوهات",
       "icon": "🎥",
-      "folders": [
-        {
-          "id": "lectures",
-          "name": "محاضرات دينية"
-        }
-      ],
+      "folders": [],
       "items": [
         {
           "id": 3,
           "title": "فيديو توضيحي",
           "description": "وصف الفيديو",
-          "folderId": "lectures",
           "url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
           "thumbnail": "https://picsum.photos/800/450?random=3",
           "type": "video",
