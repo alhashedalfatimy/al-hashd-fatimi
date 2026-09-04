@@ -1,8 +1,9 @@
-let data = { version: '3.0.0.0', sections: [], announcements: [] };
+let data = { version: '3.0.0.0', sections: [], announcements: [], admin: { username: 'admin', passwordHash: '' } };
 let stack = [];
 let upFile = null;
 const REPO = 'alhashedalfatimy/al-hashd-fatimi';
 const BRANCH = 'main';
+const THEME_KEY = 'alhashd_theme';
 
 function getToken() {
   return localStorage.getItem('gh_token') || sessionStorage.getItem('gh_token') || '';
@@ -12,8 +13,33 @@ function setToken(t) {
   sessionStorage.setItem('gh_token', t);
 }
 
+// ===== SHA-256 helper =====
+async function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ===== Theme =====
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'dark' ? '☀️' : '🌙';
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.setAttribute('content', t === 'dark' ? '#000000' : '#ffffff');
+}
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, t);
+  applyTheme(t);
+}
+window.addEventListener('storage', (e) => {
+  if (e.key === THEME_KEY) applyTheme(e.newValue || 'dark');
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (!sessionStorage.getItem('admin_auth')) { location.href = 'index.html'; return; }
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
   let t = getToken();
   if (!t) {
     t = prompt('توكن GitHub:');
@@ -28,10 +54,11 @@ async function load() {
     const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/content.json?n=' + Date.now());
     if (r.ok) {
       data = await r.json();
-      if (!data.sections) data = { version: '3.0.0.0', sections: [], announcements: [] };
+      if (!data.sections) data = { version: '3.0.0.0', sections: [], announcements: [], admin: { username: 'admin', passwordHash: '' } };
       if (!data.announcements) data.announcements = [];
+      if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
     }
-  } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [] }; }
+  } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [], admin: { username: 'admin', passwordHash: '' } }; }
 }
 
 async function api(path, method, body) {
@@ -70,7 +97,7 @@ function renderSections() {
   if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
   else secs.forEach((s, i) => {
     html += `
-      <div class="card" onclick="push('section',{id:'${s.id}'})">
+      <div class="card glass" onclick="push('section',{id:'${s.id}'})">
         <div class="info"><div class="icon">${s.icon||'📁'}</div><div>
           <div class="name">${esc(s.name)}</div>
           <div class="meta">${s.folders?.length||0} مجلد · ${s.items?.length||0} عنصر</div>
@@ -83,11 +110,89 @@ function renderSections() {
   });
   html += `
     <div style="display:flex;gap:10px;margin:14px 16px;">
-      <div class="fab" style="flex:1;" onclick="openAddSec()">➕ قسم</div>
-      <div class="fab" style="flex:1;" onclick="push('anns')">📢 إعلانات</div>
+      <div class="fab glass" style="flex:1;" onclick="openAddSec()">➕ قسم</div>
+      <div class="fab glass" style="flex:1;" onclick="push('anns')">📢 إعلانات</div>
     </div>`;
+  html += renderAccountSection();
   view.innerHTML = html;
   window.scrollTo(0, 0);
+}
+
+// ===== ACCOUNT MANAGEMENT =====
+function renderAccountSection() {
+  const admin = data.admin || { username: 'admin', passwordHash: '' };
+  return `
+    <div class="account-card glass" id="account-card">
+      <h3>🔐 إدارة الحساب</h3>
+      <div class="fg">
+        <label>اسم المستخدم الحالي</label>
+        <input type="text" id="acc-current-user" value="${esc(admin.username)}" disabled style="opacity:0.6;">
+      </div>
+      <div class="fg">
+        <label>اسم المستخدم الجديد</label>
+        <input type="text" id="acc-new-user" placeholder="اتركه فارغاً إذا لم ترغب في التغيير">
+      </div>
+      <div class="divider"></div>
+      <div class="fg">
+        <label>كلمة المرور الحالية *</label>
+        <input type="password" id="acc-current-pass" placeholder="أدخل كلمة المرور الحالية للتحقق">
+      </div>
+      <div class="fg">
+        <label>كلمة المرور الجديدة</label>
+        <input type="password" id="acc-new-pass" placeholder="اتركها فارغة إذا لم ترغب في التغيير">
+      </div>
+      <div class="fg">
+        <label>تأكيد كلمة المرور الجديدة</label>
+        <input type="password" id="acc-confirm-pass" placeholder="أعد إدخال كلمة المرور الجديدة">
+      </div>
+      <button class="save-btn" onclick="saveAccountChanges()">💾 حفظ التغييرات</button>
+    </div>
+  `;
+}
+
+async function saveAccountChanges() {
+  const currentPass = document.getElementById('acc-current-pass').value;
+  const newUser = document.getElementById('acc-new-user').value.trim();
+  const newPass = document.getElementById('acc-new-pass').value;
+  const confirmPass = document.getElementById('acc-confirm-pass').value;
+
+  if (!currentPass) { toast('يجب إدخال كلمة المرور الحالية', 'bad'); return; }
+
+  const currentHash = await sha256(currentPass);
+  const admin = data.admin || { username: 'admin', passwordHash: '' };
+  const expectedHash = admin.passwordHash || await sha256('admin123');
+
+  if (currentHash !== expectedHash) { toast('كلمة المرور الحالية غير صحيحة', 'bad'); return; }
+
+  let changed = false;
+
+  if (newUser && newUser !== admin.username) {
+    data.admin = data.admin || {};
+    data.admin.username = newUser;
+    changed = true;
+  }
+
+  if (newPass) {
+    if (newPass !== confirmPass) { toast('كلمتا المرور الجديدتان غير متطابقتين', 'bad'); return; }
+    if (newPass.length < 6) { toast('يجب أن تكون كلمة المرور 6 أحرف على الأقل', 'bad'); return; }
+    data.admin = data.admin || {};
+    data.admin.passwordHash = await sha256(newPass);
+    changed = true;
+  }
+
+  if (!changed) { toast('لم يتم إجراء أي تغييرات', 'ok'); return; }
+
+  try {
+    await saveData();
+    toast('تم حفظ التغييرات بنجاح', 'ok');
+    document.getElementById('acc-current-pass').value = '';
+    document.getElementById('acc-new-pass').value = '';
+    document.getElementById('acc-confirm-pass').value = '';
+    document.getElementById('acc-new-user').value = '';
+    document.getElementById('acc-current-user').value = data.admin.username;
+  } catch (e) {
+    toast('فشل الحفظ: ' + e.message, 'bad');
+  }
 }
 
 function renderSection(sid) {
@@ -96,14 +201,14 @@ function renderSection(sid) {
   if (!sec) { pop(); return; }
   const folders = sec.folders || [];
   let html = `
-    <div class="breadcrumb"><button class="back" onclick="pop()">← رجوع</button>
+    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">${esc(sec.name)}</span></div>
     <div class="page-title">📁 المجلدات</div>`;
   if (!folders.length) html += '<div class="empty"><div class="ei">📁</div><div>لا توجد مجلدات</div></div>';
   else folders.forEach((f, i) => {
     const cnt = (sec.items||[]).filter(x => x.folderId === f.id).length;
     html += `
-      <div class="card" onclick="push('folder',{sid:'${sid}',fid:'${f.id}'})">
+      <div class="card glass" onclick="push('folder',{sid:'${sid}',fid:'${f.id}'})">
         <div class="info"><div class="icon">📁</div><div>
           <div class="name">${esc(f.name)}</div><div class="meta">${cnt} عنصر</div>
         </div></div>
@@ -113,7 +218,7 @@ function renderSection(sid) {
         </div>
       </div>`;
   });
-  html += `<div class="fab" onclick="openAddFld('${sid}')">➕ مجلد جديد</div>`;
+  html += `<div class="fab glass" onclick="openAddFld('${sid}')">➕ مجلد جديد</div>`;
   view.innerHTML = html; window.scrollTo(0, 0);
 }
 
@@ -124,17 +229,17 @@ function renderFolder(sid, fid) {
   if (!sec || !fld) { pop(); return; }
   const items = (sec.items||[]).filter(i => i.folderId === fid);
   let html = `
-    <div class="breadcrumb"><button class="back" onclick="pop()">← رجوع</button>
+    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">${esc(fld.name)}</span></div>
     <div class="page-title">📂 ${esc(fld.name)}</div>
-    <div class="upload-zone" id="uz"><div class="u-icon">📤</div><div class="u-text">اضغط لإضافة وسائط</div>
+    <div class="upload-zone glass" id="uz"><div class="u-icon">📤</div><div class="u-text">اضغط لإضافة وسائط</div>
     <input type="file" id="uf" multiple accept="image/*,video/*,audio/*" style="display:none;"></div>`;
   if (!items.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد وسائط</div></div>';
   else items.forEach(it => {
     const thumb = it.thumbnail || it.cover || it.url || '';
     const isA = it.type === 'audio';
     html += `
-      <div class="media-row">
+      <div class="media-row glass">
         ${thumb?`<img src="${thumb}" onerror="this.style.display='none'">`:''}
         <div class="ph" style="display:${thumb?'none':'flex'}">${isA?'🎧':'🖼'}</div>
         <div class="minfo"><div class="mtitle">${esc(it.title)}</div>
@@ -153,13 +258,13 @@ function renderAnns() {
   const view = document.getElementById('view');
   const anns = data.announcements || [];
   let html = `
-    <div class="breadcrumb"><button class="back" onclick="pop()">← رجوع</button>
+    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">📢 الإعلانات</span></div>
     <div class="page-title">📢 الإعلانات</div>`;
   if (!anns.length) html += '<div class="empty"><div class="ei">📢</div><div>لا توجد إعلانات</div></div>';
   else anns.forEach((a, i) => {
     html += `
-      <div class="card">
+      <div class="card glass">
         <div class="info"><div class="icon">${a.active?'🔔':'🔕'}</div><div>
           <div class="name">${esc(a.title)}</div>
           <div class="meta">${esc(a.text||'').substring(0,40)}${(a.text||'').length>40?'...':''}</div>
@@ -170,7 +275,7 @@ function renderAnns() {
         </div>
       </div>`;
   });
-  html += `<div class="fab" onclick="openAddAnn()">➕ إعلان جديد</div>`;
+  html += `<div class="fab glass" onclick="openAddAnn()">➕ إعلان جديد</div>`;
   view.innerHTML = html; window.scrollTo(0, 0);
 }
 
@@ -409,6 +514,7 @@ function setup() {
   document.getElementById('logout').onclick = () => { sessionStorage.removeItem('admin_auth'); location.href = 'index.html'; };
   document.getElementById('modal-x').onclick = hideModal;
   document.getElementById('modal-bg').onclick = e => { if (e.target.id === 'modal-bg') hideModal(); };
+  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 }
 
 // ===== UTILS =====
