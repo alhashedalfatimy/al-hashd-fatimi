@@ -1,4 +1,4 @@
-let data = { version: '3.0.0.0', sections: [], announcements: [], admin: { username: 'admin', passwordHash: '' } };
+let data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } };
 let stack = [];
 let upFile = null;
 const REPO = 'alhashedalfatimy/al-hashd-fatimi';
@@ -54,11 +54,12 @@ async function load() {
     const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/content.json?n=' + Date.now());
     if (r.ok) {
       data = await r.json();
-      if (!data.sections) data = { version: '3.0.0.0', sections: [], announcements: [], admin: { username: 'admin', passwordHash: '' } };
+      if (!data.sections) data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } };
       if (!data.announcements) data.announcements = [];
+      if (!data.about) data.about = {};
       if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
     }
-  } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [], admin: { username: 'admin', passwordHash: '' } }; }
+  } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } }; }
 }
 
 async function api(path, method, body) {
@@ -86,6 +87,7 @@ function render() {
   else if (c.type === 'section') renderSection(c.id);
   else if (c.type === 'folder') renderFolder(c.sid, c.fid);
   else if (c.type === 'anns') renderAnns();
+  else if (c.type === 'about') renderAboutEdit();
 }
 
 // ===== SECTIONS =====
@@ -109,13 +111,74 @@ function renderSections() {
       </div>`;
   });
   html += `
-    <div style="display:flex;gap:10px;margin:14px 16px;">
-      <div class="fab glass" style="flex:1;" onclick="openAddSec()">➕ قسم</div>
-      <div class="fab glass" style="flex:1;" onclick="push('anns')">📢 إعلانات</div>
+    <div style="display:flex;gap:10px;margin:14px 16px;flex-wrap:wrap;">
+      <div class="fab glass" style="flex:1;min-width:140px;" onclick="openAddSec()">➕ قسم</div>
+      <div class="fab glass" style="flex:1;min-width:140px;" onclick="push('anns')">📢 إعلانات</div>
+      <div class="fab glass" style="flex:1;min-width:140px;" onclick="push('about')">ℹ️ عن التطبيق</div>
     </div>`;
   html += renderAccountSection();
   view.innerHTML = html;
   window.scrollTo(0, 0);
+}
+
+// ===== ABOUT APP =====
+function renderAboutEdit() {
+  const view = document.getElementById('view');
+  const about = data.about || {};
+  let html = `
+    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
+    <span class="sep">|</span><span class="crumb">ℹ️ عن التطبيق</span></div>
+    <div class="page-title">ℹ️ إدارة معلومات التطبيق</div>
+    <div class="account-card glass">
+      <div class="fg">
+        <label>اسم التطبيق</label>
+        <input type="text" id="ab-name" value="${esc(about.name || 'الحشد الفاطمي')}">
+      </div>
+      <div class="fg">
+        <label>الوصف</label>
+        <input type="text" id="ab-desc" value="${esc(about.description || 'محتوى ديني من الحرمات المقدسة')}">
+      </div>
+      <div class="fg">
+        <label>رقم الإصدار</label>
+        <input type="text" id="ab-ver" value="${esc(about.version || '3.0.0.0')}">
+      </div>
+      <div class="fg">
+        <label>آخر التحديثات</label>
+        <textarea id="ab-updates" rows="3" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;resize:vertical;">${esc(about.updates || '')}</textarea>
+      </div>
+      <div class="fg">
+        <label>معلومات التواصل</label>
+        <input type="text" id="ab-contact" value="${esc(about.contact || '')}" placeholder="رقم هاتف، بريد، رابط...">
+      </div>
+      <div class="fg">
+        <label>معلومات إضافية</label>
+        <textarea id="ab-extra" rows="2" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-family:inherit;font-size:0.85rem;outline:none;resize:vertical;">${esc(about.extra || '')}</textarea>
+      </div>
+      <button class="save-btn" onclick="saveAbout()">💾 حفظ التغييرات</button>
+    </div>
+  `;
+  view.innerHTML = html;
+  window.scrollTo(0, 0);
+}
+
+async function saveAbout() {
+  const name = document.getElementById('ab-name').value.trim();
+  const desc = document.getElementById('ab-desc').value.trim();
+  const ver = document.getElementById('ab-ver').value.trim();
+  const updates = document.getElementById('ab-updates').value.trim();
+  const contact = document.getElementById('ab-contact').value.trim();
+  const extra = document.getElementById('ab-extra').value.trim();
+
+  if (!name) { toast('اسم التطبيق مطلوب', 'bad'); return; }
+
+  data.about = { name, description: desc, version: ver, updates, contact, extra };
+
+  try {
+    await saveData();
+    toast('تم حفظ معلومات التطبيق', 'ok');
+  } catch (e) {
+    toast('فشل الحفظ: ' + e.message, 'bad');
+  }
 }
 
 // ===== ACCOUNT MANAGEMENT =====
