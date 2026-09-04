@@ -10,22 +10,40 @@
   <link rel="icon" type="image/png" href="icons/logo-new.png">
   <style>
     :root {
-      --bg: #000000;
-      --card: rgba(25,25,25,0.65);
-      --border: rgba(255,255,255,0.06);
+      --bg: #0a0a0a;
+      --bg-sec: rgba(20, 20, 20, 0.45);
+      --card: rgba(255, 255, 255, 0.06);
+      --card-hover: rgba(255, 255, 255, 0.12);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(139, 0, 0, 0.5);
       --text: #ffffff;
       --text2: #aaa;
       --text3: #555;
       --accent: #8B0000;
       --accent2: #b30000;
       --gold: #c9a227;
-      --blur: 20px;
+      --blur: 24px;
+    }
+    [data-theme="light"] {
+      --bg: #f0f0f0;
+      --bg-sec: rgba(255, 255, 255, 0.55);
+      --card: rgba(255, 255, 255, 0.5);
+      --card-hover: rgba(255, 255, 255, 0.75);
+      --border: rgba(0, 0, 0, 0.06);
+      --border-hover: rgba(139, 0, 0, 0.3);
+      --text: #111111;
+      --text2: #555;
+      --text3: #999;
+      --accent: #8B0000;
+      --accent2: #b30000;
+      --gold: #b8960f;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg); color: var(--text);
       min-height: 100vh; overflow-x: hidden;
+      transition: background 0.4s ease, color 0.4s ease;
     }
     .bg {
       position: fixed; inset: 0; z-index: 0;
@@ -33,7 +51,18 @@
       pointer-events: none;
     }
     .main { position: relative; z-index: 1; min-height: 100vh; padding-bottom: 40px; }
-
+    .glass {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      border-radius: 16px;
+      transition: all 0.3s ease;
+    }
+    .glass:hover {
+      border-color: var(--border-hover);
+      background: var(--card-hover);
+    }
     .header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 18px;
@@ -46,41 +75,49 @@
       font-weight: 800; font-size: 1.05rem; color: var(--text);
     }
     .header .title img { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text2); font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      transition: all 0.25s ease;
+    }
+    .icon-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.05); }
     .logout {
       background: rgba(139,0,0,0.15); color: var(--accent2);
       border: 1px solid rgba(139,0,0,0.3); padding: 7px 16px;
       border-radius: 8px; font-family: inherit; font-weight: 700;
       font-size: 0.82rem; cursor: pointer;
+      transition: all 0.2s;
     }
-
+    .logout:hover { background: rgba(139,0,0,0.25); }
     .breadcrumb {
       display: flex; align-items: center; gap: 8px;
       padding: 10px 18px; margin-top: 4px;
     }
     .back {
-      background: var(--card); border: 1px solid var(--border);
-      color: var(--text2); padding: 5px 12px;
+      padding: 5px 12px;
       border-radius: 8px; font-family: inherit;
       font-size: 0.78rem; cursor: pointer;
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text2);
     }
     .crumb { color: var(--accent2); font-weight: 700; font-size: 0.88rem; }
     .sep { color: var(--text3); }
-
     .page-title {
       padding: 6px 18px 10px;
       font-size: 0.95rem; font-weight: 800;
     }
-
     .card {
       display: flex; align-items: center; justify-content: space-between;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 14px; padding: 14px 18px;
+      padding: 14px 18px;
       margin: 6px 16px; cursor: pointer;
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      transition: all 0.2s;
+      transition: all 0.25s ease;
     }
     .card:hover { border-color: rgba(139,0,0,0.35); transform: translateX(-2px); }
     .card .info { display: flex; align-items: center; gap: 12px; }
@@ -99,10 +136,10 @@
       border-radius: 8px; border: none;
       font-size: 0.9rem; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
     }
     .card .actions .ed { background: rgba(201,162,39,0.12); }
     .card .actions .del { background: rgba(139,0,0,0.15); color: var(--accent2); }
-
     .fab {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       margin: 14px 16px; padding: 14px;
@@ -111,15 +148,14 @@
       border-radius: 14px; color: var(--accent2);
       font-weight: 800; font-size: 0.88rem;
       cursor: pointer; font-family: inherit;
+      transition: all 0.2s;
     }
-
+    .fab:hover { background: rgba(139,0,0,0.1); }
     .media-row {
       display: flex; align-items: center; gap: 12px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 10px 14px;
+      padding: 10px 14px;
       margin: 6px 16px;
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
+      transition: all 0.2s;
     }
     .media-row img, .media-row .ph {
       width: 50px; height: 50px; border-radius: 10px;
@@ -136,20 +172,18 @@
       border: none; border-radius: 8px; font-size: 0.9rem;
       cursor: pointer;
     }
-
     .upload-zone {
       margin: 14px 16px; padding: 28px 20px;
       border: 2px dashed rgba(139,0,0,0.22);
       border-radius: 14px; text-align: center;
       cursor: pointer; background: rgba(139,0,0,0.02);
+      transition: all 0.2s;
     }
     .upload-zone:hover { border-color: var(--accent); background: rgba(139,0,0,0.04); }
     .upload-zone .u-icon { font-size: 1.8rem; margin-bottom: 6px; }
     .upload-zone .u-text { color: var(--text2); font-size: 0.85rem; }
-
     .empty { text-align: center; padding: 50px 20px; color: var(--text3); }
     .empty .ei { font-size: 3rem; margin-bottom: 10px; opacity: 0.35; }
-
     .modal-bg {
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.9);
@@ -160,11 +194,8 @@
     .modal-bg.on { display: flex; }
     .modal-box {
       width: 100%; max-width: 380px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 18px; padding: 22px;
+      padding: 22px;
       position: relative;
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
     }
     .modal-box .x {
       position: absolute; top: 14px; left: 14px;
@@ -195,8 +226,9 @@
       border: none; border-radius: 10px;
       font-family: inherit; font-weight: 800;
       font-size: 0.95rem; cursor: pointer; margin-top: 4px;
+      transition: opacity 0.2s;
     }
-
+    .save:hover { opacity: 0.9; }
     .toast {
       position: fixed; bottom: 22px; left: 50%;
       transform: translateX(-50%) translateY(100px);
@@ -204,7 +236,7 @@
       font-weight: 700; font-size: 0.85rem;
       z-index: 2000; transition: transform 0.3s;
       white-space: nowrap;
-      background: var(--card); border: 1px solid var(--border);
+      background: var(--bg-sec); border: 1px solid var(--border);
       color: var(--text);
       backdrop-filter: blur(var(--blur));
       -webkit-backdrop-filter: blur(var(--blur));
@@ -212,6 +244,48 @@
     .toast.show { transform: translateX(-50%) translateY(0); }
     .toast.ok { border-color: #27ae60; color: #2ecc71; }
     .toast.bad { border-color: var(--accent); color: var(--accent2); }
+    .account-card {
+      margin: 14px 16px;
+      padding: 18px;
+    }
+    .account-card h3 {
+      font-size: 0.95rem; font-weight: 800;
+      color: var(--accent2); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .account-card .fg { margin-bottom: 10px; }
+    .account-card .fg label { font-size: 0.75rem; }
+    .account-card .fg input {
+      padding: 10px 12px;
+      font-size: 0.85rem;
+    }
+    .account-card .save-btn {
+      width: 100%; padding: 11px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px;
+      font-family: inherit; font-weight: 700;
+      font-size: 0.88rem; cursor: pointer;
+      margin-top: 6px;
+      transition: opacity 0.2s;
+    }
+    .account-card .save-btn:hover { opacity: 0.9; }
+    .account-card .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 14px 0;
+    }
+    @media (min-width: 768px) {
+      .card, .media-row, .fab, .upload-zone, .account-card { margin: 8px 24px; }
+      .header { padding: 18px 24px; }
+      .breadcrumb { padding: 12px 24px; }
+      .page-title { padding: 8px 24px 12px; }
+      body { max-width: 800px; margin: 0 auto; }
+    }
+    @media (max-width: 360px) {
+      .card { padding: 12px 14px; margin: 4px 12px; }
+      .media-row { padding: 8px 12px; margin: 4px 12px; }
+      .fab { margin: 10px 12px; padding: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -222,21 +296,21 @@
         <img src="icons/logo-new.png" alt="">
         <span>إدارة المحتوى</span>
       </div>
-      <button class="logout" id="logout">خروج</button>
+      <div class="header-actions">
+        <button class="icon-btn glass" id="theme-toggle" title="تبديل النمط">🌙</button>
+        <button class="logout" id="logout">خروج</button>
+      </div>
     </div>
     <div id="view"></div>
   </div>
-
   <div class="modal-bg" id="modal-bg">
-    <div class="modal-box">
+    <div class="modal-box glass">
       <button class="x" id="modal-x">✕</button>
       <h3 id="modal-title">عنوان</h3>
       <div id="modal-body"></div>
     </div>
   </div>
-
   <div class="toast" id="toast"></div>
-
   <script src="js/db.js"></script>
   <script src="js/admin.js"></script>
 </body>
