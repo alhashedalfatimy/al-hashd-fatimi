@@ -1,5 +1,5 @@
 // ===== State =====
-let allData = { version: '3.0.0.0', sections: [], announcements: [] };
+let allData = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: {} };
 let currentPage = 'home';
 let currentSecId = null;
 let currentFoldId = null;
@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupPWA();
     renderHome();
     showAnnouncement();
+    updateAnnBadge();
+    renderAboutPage();
   } catch (e) {
     console.error(e);
     toast('خطأ في التحميل', 'bad');
@@ -61,11 +63,14 @@ async function loadData() {
     const r = await fetch('content.json?nocache=' + Date.now(), { cache: 'no-store' });
     if (r.ok) {
       allData = await r.json();
-      if (!allData.sections) allData = { version: '3.0.0.0', sections: [], announcements: [] };
+      if (!allData.sections) allData.sections = [];
+      if (!allData.announcements) allData.announcements = [];
+      if (!allData.about) allData.about = {};
+      if (!allData.admin) allData.admin = {};
     }
   } catch (e) {
     console.error('Load error:', e);
-    allData = { version: '3.0.0.0', sections: [], announcements: [] };
+    allData = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: {} };
   }
 }
 
@@ -101,7 +106,7 @@ function renderHome() {
   container.innerHTML = html;
 }
 
-// ===== Announcement =====
+// ===== Announcement Bar =====
 function showAnnouncement() {
   const bar = document.getElementById('ann-bar');
   const txt = document.getElementById('ann-txt');
@@ -112,17 +117,109 @@ function showAnnouncement() {
 }
 function closeAnn() { document.getElementById('ann-bar').classList.remove('on'); }
 
+// ===== Announcement Badge =====
+function updateAnnBadge() {
+  const badge = document.getElementById('ann-badge');
+  if (!badge) return;
+  const hasActive = (allData.announcements || []).some(a => a.active);
+  if (hasActive) badge.classList.add('on');
+  else badge.classList.remove('on');
+}
+
+// ===== Render Announcements Page =====
+function renderAnnouncementsPage() {
+  const container = document.getElementById('ann-list');
+  const anns = (allData.announcements || []).filter(a => a.active);
+  let html = '';
+  if (anns.length === 0) {
+    html = `<div class="empty"><div class="ei">📢</div><div class="et">لا توجد إعلانات حالياً</div></div>`;
+  } else {
+    anns.forEach(a => {
+      html += `
+        <div class="glass" style="padding:16px;margin:10px 0;text-align:right;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:1.2rem;">🔔</span>
+            <span style="font-weight:800;color:var(--accent-light);font-size:0.95rem;">${escapeHtml(a.title)}</span>
+            <span style="margin-right:auto;font-size:0.7rem;color:var(--text3);">${a.date || ''}</span>
+          </div>
+          <p style="color:var(--text2);font-size:0.85rem;line-height:1.7;">${escapeHtml(a.text || '')}</p>
+        </div>
+      `;
+    });
+  }
+  container.innerHTML = html;
+}
+
+// ===== Render About Page =====
+function renderAboutPage() {
+  const container = document.getElementById('about-content');
+  if (!container) return;
+  const about = allData.about || {};
+  const name = about.name || 'الحشد الفاطمي';
+  const desc = about.description || 'محتوى ديني من الحرمات المقدسة';
+  const version = about.version || '3.0.0.0';
+  const updates = about.updates || '';
+  const contact = about.contact || '';
+  const extra = about.extra || '';
+
+  let html = `
+    <img src="icons/logo-new.png" alt="${escapeHtml(name)}" class="ab-logo">
+    <h2 class="ab-name">${escapeHtml(name)}</h2>
+    <p class="ab-desc">${escapeHtml(desc)}</p>
+  `;
+
+  if (updates) {
+    html += `
+      <div class="ab-card glass">
+        <h4>📋 آخر التحديثات</h4>
+        <p>${escapeHtml(updates)}</p>
+      </div>
+    `;
+  }
+
+  if (contact) {
+    html += `
+      <div class="ab-card glass">
+        <h4>📞 التواصل</h4>
+        <p>${escapeHtml(contact)}</p>
+      </div>
+    `;
+  }
+
+  if (extra) {
+    html += `
+      <div class="ab-card glass">
+        <h4>📌 معلومات إضافية</h4>
+        <p>${escapeHtml(extra)}</p>
+      </div>
+    `;
+  }
+
+  html += `<div class="ab-version">الإصدار ${escapeHtml(version)}</div>`;
+  container.innerHTML = html;
+}
+
 // ===== Navigation =====
 function navTo(page) {
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
+
+  if (page === 'announcements') {
+    renderAnnouncementsPage();
+  } else if (page === 'about') {
+    renderAboutPage();
+  }
+
   const target = document.getElementById('page-' + page);
   if (target) target.classList.add('on');
+
   const btn = document.querySelector(`.bnav button[data-page="${page}"]`);
   if (btn) btn.classList.add('on');
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
 function goHome() {
   currentSecId = null; currentFoldId = null;
   navTo('home'); renderHome();
