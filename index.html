@@ -220,9 +220,25 @@
       padding: 6px 0 14px; z-index: 100;
       backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     }
-    .bnav button { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; color: var(--text3); font-family: inherit; font-size: 0.58rem; cursor: pointer; padding: 4px 14px; transition: color 0.2s; }
+    .bnav button { 
+      display: flex; flex-direction: column; align-items: center; gap: 2px; 
+      background: none; border: none; color: var(--text3); 
+      font-family: inherit; font-size: 0.58rem; cursor: pointer; 
+      padding: 4px 10px; transition: color 0.2s; position: relative;
+    }
     .bnav button.on { color: var(--accent); }
     .bnav button .ni { font-size: 1.2rem; }
+    /* Badge for announcements */
+    .bnav button .badge {
+      position: absolute; top: -2px; right: 2px;
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: none;
+      box-shadow: 0 0 6px var(--accent-glow);
+    }
+    .bnav button .badge.on { display: block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.7; } }
     .admin-ol {
       position: fixed; inset: 0; background: rgba(0,0,0,0.88);
       z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px;
@@ -261,6 +277,39 @@
       background: var(--card); border: 1px solid var(--border); color: var(--text2);
     }
     .install-btn.on { display: block; }
+    /* About page styles */
+    .about-box {
+      text-align: center; padding: 20px 10px 80px;
+    }
+    .about-box .ab-logo {
+      width: 110px; height: 110px; border-radius: 50%;
+      border: 3px solid var(--accent); margin-bottom: 20px;
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+    .about-box .ab-name {
+      color: var(--accent-light); margin-bottom: 8px;
+      font-size: 1.3rem; font-weight: 800;
+    }
+    .about-box .ab-desc {
+      color: var(--text2); line-height: 1.8;
+      font-size: 0.9rem; margin-bottom: 20px;
+    }
+    .about-box .ab-card {
+      text-align: right; padding: 16px; margin: 10px 0;
+    }
+    .about-box .ab-card h4 {
+      color: var(--accent-light); font-size: 0.85rem;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .about-box .ab-card p {
+      color: var(--text2); font-size: 0.82rem;
+      line-height: 1.7; white-space: pre-line;
+    }
+    .about-box .ab-version {
+      color: var(--text3); font-size: 0.78rem;
+      margin-top: 24px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
     @media (min-width: 768px) {
       .m-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
       .folders-row { gap: 14px; }
@@ -270,6 +319,7 @@
       .sec-header { padding: 0 24px 10px; }
       .folders-row { padding: 0 24px; }
       .page { padding: 0 24px 100px; }
+      .about-box { padding: 30px 20px 80px; }
     }
     @media (min-width: 1024px) {
       .m-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -311,12 +361,16 @@
     <div class="breadcrumb">
       <button class="back glass" onclick="goHome()">← رجوع</button>
     </div>
-    <div style="text-align:center;padding:40px 20px 80px;">
-      <img src="icons/logo-new.png" alt="" style="width:100px;height:100px;border-radius:50%;border:3px solid var(--accent);margin-bottom:20px;box-shadow:0 0 20px var(--accent-glow);">
-      <h2 style="color:var(--accent-light);margin-bottom:10px;">الحشد الفاطمي</h2>
-      <p style="color:var(--text2);line-height:1.8;font-size:0.88rem;">محتوى ديني من الحرمات المقدسة</p>
-      <p style="color:var(--text3);font-size:0.78rem;margin-top:24px;">الإصدار 3.0.0.0</p>
+    <div class="about-box" id="about-content">
+      <!-- Dynamic content loaded by JS -->
     </div>
+  </div>
+  <div id="page-announcements" class="page">
+    <div class="breadcrumb">
+      <button class="back glass" onclick="goHome()">← رجوع</button>
+      <span class="crumb">📢 الإعلانات</span>
+    </div>
+    <div id="ann-list"></div>
   </div>
   <div class="viewer" id="viewer">
     <button class="vc" id="vc">✕</button>
@@ -350,6 +404,11 @@
   <nav class="bnav glass">
     <button class="on" data-page="home" onclick="goHome()">
       <span class="ni">🏠</span><span>الرئيسية</span>
+    </button>
+    <button data-page="announcements" onclick="navTo('announcements')">
+      <span class="ni">📢</span>
+      <span class="badge" id="ann-badge"></span>
+      <span>إعلانات</span>
     </button>
     <button data-page="about" onclick="navTo('about')">
       <span class="ni">ℹ️</span><span>عن التطبيق</span>
