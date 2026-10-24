@@ -225,10 +225,36 @@ function goHome() {
   navTo('home'); renderHome();
 }
 
+function getFolderTree(sec) {
+  const roots = sec?.folders || [];
+  const flat = roots.filter(f => !f.parentId && !f.parentFolderId);
+  const nested = roots.filter(f => f.parentId || f.parentFolderId);
+  const byId = new Map(roots.map(f => [String(f.id), f]));
+  const childrenOf = (folder) => {
+    const embedded = folder.folders || folder.subfolders || folder.children || [];
+    const linked = nested.filter(f => String(f.parentId || f.parentFolderId) === String(folder.id));
+    return [...embedded, ...linked.filter(f => !embedded.some(e => String(e.id) === String(f.id)))];
+  };
+  return { roots: flat.length || nested.length ? flat : roots, childrenOf, byId };
+}
+function findFolderPath(sec, folderId) {
+  const tree = getFolderTree(sec);
+  const walk = (folders, parents = []) => {
+    for (const folder of folders || []) {
+      const path = [...parents, folder];
+      if (String(folder.id) === String(folderId)) return path;
+      const found = walk(tree.childrenOf(folder), path);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(tree.roots) || (sec?.folders || []).find(f => String(f.id) === String(folderId)) ? walk(tree.roots) : null;
+}
 function openFolder(secId, foldId) {
   currentSecId = secId; currentFoldId = foldId;
-  const sec = allData.sections?.find(s => s.id === secId);
-  const fold = sec?.folders?.find(f => f.id === foldId);
+  const sec = allData.sections?.find(s => String(s.id) === String(secId));
+  const folderPath = findFolderPath(sec, foldId);
+  const fold = folderPath?.[folderPath.length - 1] || sec?.folders?.find(f => String(f.id) === String(foldId));
   if (!sec || !fold) return;
   let page = document.getElementById('page-' + secId + '-' + foldId);
   if (!page) {
@@ -241,7 +267,17 @@ function openFolder(secId, foldId) {
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
   const items = (sec.items || []).filter(i => i.folderId === foldId && i.visibility !== 'private');
-  let html = `<div class="breadcrumb"><span class="crumb">${escapeHtml(fold.name)}</span></div>`;
+  const tree = getFolderTree(sec);
+  const childFolders = tree.childrenOf(fold);
+  let html = `<div class="breadcrumb"><span class="crumb">${(folderPath || [fold]).map(f => escapeHtml(f.name)).join(' ← ')}</span></div>`;
+  if (childFolders.length) {
+    html += `<div class="folders-row" style="padding:0 0 14px;">`;
+    childFolders.forEach(child => {
+      const count = (sec.items || []).filter(i => String(i.folderId) === String(child.id)).length;
+      html += `<div class="folder-chip glass" onclick="openFolder('${String(sec.id)}', '${String(child.id)}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(child.name)}</div><div class="fcnt">${count} عنصر</div></div>`;
+    });
+    html += `</div>`;
+  }
   if (sec.id === 'audios') {
     html += `<div class="a-list">`;
     if (items.length === 0) html += `<div class="empty"><div class="ei">🎧</div><div class="et">لا توجد مقاطع</div></div>`;
@@ -360,16 +396,82 @@ function seekAudio(e) {
 }
 
 // ===== Search =====
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\\u064B-\\u065F\\u0670\\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .toLocaleLowerCase('ar')
+    .trim();
+}
+function collectSearchFolders(sec) {
+  const tree = getFolderTree(sec);
+  const out = [];
+  const visited = new Set();
+  const walk = (folders, parentPath = []) => {
+    (folders || []).forEach(folder => {
+      const key = String(folder.id);
+      if (visited.has(key)) return;
+      visited.add(key);
+      const path = [...parentPath, folder];
+      out.push({ folder, path, sec });
+      walk(tree.childrenOf(folder), path);
+    });
+  };
+  walk(tree.roots);
+  // Include orphaned/legacy folders too, without losing them from search.
+  (sec.folders || []).forEach(folder => {
+    if (!visited.has(String(folder.id))) out.push({ folder, path: [folder], sec });
+  });
+  return out;
+}
 function doSearch(e) {
   const q = e.target.value.trim();
   if (!q) { goHome(); return; }
+  const needle = normalizeSearchText(q);
   const results = [];
   (allData.sections || []).forEach(sec => {
-    (sec.items || []).forEach(item => {
-      if (item.visibility !== 'private' && ((item.title && item.title.includes(q)) || (item.description && item.description.includes(q)))) {
-        results.push({ ...item, secName: sec.name });
+    collectSearchFolders(sec).forEach(({ folder, path }) => {
+      const name = normalizeSearchText(folder.name);
+      if (name.includes(needle)) {
+        results.push({
+          resultType: 'folder',
+          id: folder.id,
+          secId: sec.id,
+          title: folder.name,
+          path: [sec.name, ...path.map(f => f.name)],
+          folderPath: path
+        });
       }
     });
+    (sec.items || []).forEach(item => {
+      if (item.visibility === 'private') return;
+      const title = normalizeSearchText(item.title);
+      const description = normalizeSearchText(item.description);
+      if (title.includes(needle) || description.includes(needle)) {
+        const folderPath = item.folderId != null ? findFolderPath(sec, item.folderId) : null;
+        results.push({
+          ...item,
+          resultType: 'item',
+          secName: sec.name,
+          secId: sec.id,
+          path: [sec.name, ...(folderPath || []).map(f => f.name)],
+          sourceItems: sec.items
+        });
+      }
+    });
+    if (normalizeSearchText(sec.name).includes(needle)) {
+      results.push({
+        resultType: 'section',
+        id: sec.id,
+        secId: sec.id,
+        title: sec.name,
+        path: [sec.name]
+      });
+    }
   });
   let page = document.getElementById('page-search');
   if (!page) {
@@ -380,20 +482,38 @@ function doSearch(e) {
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
   let html = `<div class="breadcrumb"><span class="crumb">نتائج البحث</span></div>`;
-  if (results.length === 0) html += `<div class="empty"><div class="ei">🔍</div><div class="et">لا توجد نتائج</div></div>`;
+  if (results.length === 0) html += `<div class="empty"><div class="ei">🔍</div><div class="et">لا توجد نتائج مطابقة لـ «${escapeHtml(q)}»</div></div>`;
   else {
-    html += `<div class="m-grid">`;
-    results.forEach(item => {
-      html += `<div class="m-card glass" data-id="${item.id}" style="position:relative;"><img src="${item.thumbnail || item.url}" alt="" loading="lazy" onerror="this.style.display='none'"><div class="mi"><div class="mt">${escapeHtml(item.title)}</div><div class="md">${escapeHtml(item.secName)}</div></div></div>`;
+    html += `<div class="a-list">`;
+    results.forEach((item, idx) => {
+      const isFolder = item.resultType === 'folder';
+      const isSection = item.resultType === 'section';
+      const title = item.title || item.name || '';
+      const path = (item.path || []).map(escapeHtml).join(' ← ');
+      const image = !isFolder && !isSection ? (item.thumbnail || item.cover || item.url || '') : '';
+      html += `<div class="a-row glass search-result" data-result-index="${idx}" style="cursor:pointer;">
+        ${image ? `<img src="${image}" alt="" onerror="this.style.display='none'">` : `<div class="ap" style="cursor:pointer;">${isFolder ? '📁' : isSection ? '🗂️' : '📄'}</div>`}
+        <div class="ai"><div class="at">${escapeHtml(title)}</div><div class="ad">${path}</div></div>
+        <div style="color:var(--accent-light);font-size:1.1rem;padding:0 4px;">←</div>
+      </div>`;
     });
     html += `</div>`;
   }
   page.innerHTML = html;
-  page.querySelectorAll('.m-card').forEach(card => {
-    card.addEventListener('click', () => openViewer(parseInt(card.dataset.id), results));
+  page.querySelectorAll('.search-result').forEach(row => {
+    row.addEventListener('click', () => {
+      const item = results[Number(row.dataset.resultIndex)];
+      document.getElementById('search-input').value = '';
+      if (item.resultType === 'folder') openFolder(item.secId, item.id);
+      else if (item.resultType === 'section') {
+        goHome();
+        const sec = (allData.sections || []).find(s => String(s.id) === String(item.secId));
+        const folder = sec && getFolderTree(sec).roots[0];
+        if (folder) openFolder(sec.id, folder.id);
+      } else openViewer(item.id, item.sourceItems || [item]);
+    });
   });
 }
-
 // ===== Admin =====
 function onLogoClick() {
   logoClicks++;
