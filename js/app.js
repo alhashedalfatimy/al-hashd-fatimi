@@ -271,7 +271,7 @@ function openFolder(secId, foldId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
-  const items = (sec.items || []).filter(i => i.folderId === foldId && i.visibility !== 'private');
+  const items = (sec.items || []).filter(i => String(i.folderId) === String(foldId) && i.visibility !== 'private');
   const tree = getFolderTree(sec);
   const childFolders = tree.childrenOf(fold);
   let html = `<div class="breadcrumb"><span class="crumb">${(folderPath || [fold]).map(f => escapeHtml(f.name)).join(' ← ')}</span></div>`;
@@ -404,7 +404,7 @@ function seekAudio(e) {
 function normalizeSearchText(value) {
   return String(value || '')
     .normalize('NFKC')
-    .replace(/[\\u064B-\\u065F\\u0670\\u0640]/g, '')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ؤ/g, 'و')
