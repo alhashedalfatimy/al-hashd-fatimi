@@ -235,7 +235,9 @@ function getFolderTree(sec) {
     const linked = nested.filter(f => String(f.parentId || f.parentFolderId) === String(folder.id));
     return [...embedded, ...linked.filter(f => !embedded.some(e => String(e.id) === String(f.id)))];
   };
-  const inferredRoots = roots.filter(f => !nested.some(child => String(child.parentId || child.parentFolderId) === String(f.id)));\n  const rootFolders = flat.length ? flat : (inferredRoots.length ? inferredRoots : roots);\n  return { roots: rootFolders, childrenOf, byId };
+  const inferredRoots = roots.filter(f => !nested.some(child => String(child.parentId || child.parentFolderId) === String(f.id)));
+  const rootFolders = flat.length ? flat : (inferredRoots.length ? inferredRoots : roots);
+  return { roots: rootFolders, childrenOf, byId };
 }
 function findFolderPath(sec, folderId) {
   const tree = getFolderTree(sec);
@@ -248,7 +250,10 @@ function findFolderPath(sec, folderId) {
     }
     return null;
   };
-  const found = walk(tree.roots);\n  if (found) return found;\n  const legacy = (sec?.folders || []).find(f => String(f.id) === String(folderId));\n  return legacy ? [legacy] : null;
+  const found = walk(tree.roots);
+  if (found) return found;
+  const legacy = (sec?.folders || []).find(f => String(f.id) === String(folderId));
+  return legacy ? [legacy] : null;
 }
 function openFolder(secId, foldId) {
   currentSecId = secId; currentFoldId = foldId;
