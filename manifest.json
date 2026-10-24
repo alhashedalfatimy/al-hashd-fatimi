@@ -4,8 +4,8 @@
   "description": "محتوى ديني من الحرمات المقدسة",
   "start_url": "/al-hashd-fatimi/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#0b1524",
+  "theme_color": "#0b1524",
   "orientation": "portrait-primary",
   "scope": "/al-hashd-fatimi/",
   "icons": [
