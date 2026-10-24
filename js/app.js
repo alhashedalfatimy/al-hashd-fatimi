@@ -541,25 +541,33 @@ function onLogoPressEnd(e) {
   if (logoTimer) { clearTimeout(logoTimer); logoTimer = null; }
 }
 
-// ===== Secure login with SHA-256 =====
+// ===== Admin login =====
+// GitHub Pages is static: this client-side check is not server-side authentication.
+const ADMIN_USERNAME = 'Zahraa Al-Sultan';
+const ADMIN_PASSWORD_HASH = 'b1d9647205f2b2e60756268945042912542df922ce9b6da941889763d25d14fa';
 async function adminLogin() {
+  const button = document.getElementById('admin-login');
   const u = document.getElementById('admin-user').value.trim();
   const p = document.getElementById('admin-pass').value;
-  let adminCreds = { username: 'admin', passwordHash: '' };
+  const error = document.getElementById('admin-err');
+  button.disabled = true;
+  button.textContent = 'جارٍ التحقق...';
+  error.classList.remove('on');
   try {
-    const r = await fetch('content.json?nocache=' + Date.now(), { cache: 'no-store' });
-    if (r.ok) { const d = await r.json(); if (d.admin) adminCreds = d.admin; }
-  } catch (e) {}
-  const expectedUser = adminCreds.username || 'admin';
-  const expectedHash = adminCreds.passwordHash || await sha256('admin123');
-  const inputHash = await sha256(p);
-  if (u === expectedUser && inputHash === expectedHash) {
-    sessionStorage.setItem('admin_auth', 'true');
-    window.location.href = 'admin.html';
-  } else {
-    document.getElementById('admin-err').classList.add('on');
+    const inputHash = await sha256(p);
+    if (u === ADMIN_USERNAME && inputHash === ADMIN_PASSWORD_HASH) {
+      sessionStorage.setItem('admin_auth', 'true');
+      window.location.href = 'admin.html';
+      return;
+    }
+    error.classList.add('on');
     document.getElementById('admin-pass').value = '';
-    await new Promise(r => setTimeout(r, 500));
+  } catch (e) {
+    error.textContent = 'تعذر التحقق، حاول مجدداً';
+    error.classList.add('on');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'دخول';
   }
 }
 async function sha256(str) {
