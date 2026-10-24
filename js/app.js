@@ -241,7 +241,7 @@ function openFolder(secId, foldId) {
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
   const items = (sec.items || []).filter(i => i.folderId === foldId && i.visibility !== 'private');
-  let html = `<div class="breadcrumb"><button class="back glass" onclick="goHome()">← رجوع</button><span class="crumb">${escapeHtml(fold.name)}</span></div>`;
+  let html = `<div class="breadcrumb"><span class="crumb">${escapeHtml(fold.name)}</span></div>`;
   if (sec.id === 'audios') {
     html += `<div class="a-list">`;
     if (items.length === 0) html += `<div class="empty"><div class="ei">🎧</div><div class="et">لا توجد مقاطع</div></div>`;
@@ -379,7 +379,7 @@ function doSearch(e) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
-  let html = `<div class="breadcrumb"><button class="back glass" onclick="goHome()">← رجوع</button><span class="crumb">نتائج البحث</span></div>`;
+  let html = `<div class="breadcrumb"><span class="crumb">نتائج البحث</span></div>`;
   if (results.length === 0) html += `<div class="empty"><div class="ei">🔍</div><div class="et">لا توجد نتائج</div></div>`;
   else {
     html += `<div class="m-grid">`;
