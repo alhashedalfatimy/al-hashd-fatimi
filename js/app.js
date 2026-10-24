@@ -248,7 +248,7 @@ function findFolderPath(sec, folderId) {
     }
     return null;
   };
-  return walk(tree.roots) || (sec?.folders || []).find(f => String(f.id) === String(folderId)) ? walk(tree.roots) : null;
+  const found = walk(tree.roots);\n  if (found) return found;\n  const legacy = (sec?.folders || []).find(f => String(f.id) === String(folderId));\n  return legacy ? [legacy] : null;
 }
 function openFolder(secId, foldId) {
   currentSecId = secId; currentFoldId = foldId;
