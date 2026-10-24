@@ -1,4 +1,4 @@
-const CACHE = 'alhashd-v5';
+const CACHE = 'alhashd-v6';
 const ASSETS = [
   '/al-hashd-fatimi/',
   '/al-hashd-fatimi/index.html',
