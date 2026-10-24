@@ -235,7 +235,7 @@ function getFolderTree(sec) {
     const linked = nested.filter(f => String(f.parentId || f.parentFolderId) === String(folder.id));
     return [...embedded, ...linked.filter(f => !embedded.some(e => String(e.id) === String(f.id)))];
   };
-  return { roots: flat.length || nested.length ? flat : roots, childrenOf, byId };
+  const inferredRoots = roots.filter(f => !nested.some(child => String(child.parentId || child.parentFolderId) === String(f.id)));\n  const rootFolders = flat.length ? flat : (inferredRoots.length ? inferredRoots : roots);\n  return { roots: rootFolders, childrenOf, byId };
 }
 function findFolderPath(sec, folderId) {
   const tree = getFolderTree(sec);
