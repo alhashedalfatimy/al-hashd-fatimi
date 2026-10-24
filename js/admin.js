@@ -62,10 +62,13 @@ async function load() {
   } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } }; }
 }
 
-async function api(path, method, body) {
+async function api(path, method = 'GET', body) {
   const url = path.startsWith('http') ? path : 'https://api.github.com/repos/' + REPO + path;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
   const opts = {
     method,
+    signal: controller.signal,
     headers: {
       'Authorization': 'token ' + getToken(),
       'Accept': 'application/vnd.github.v3+json',
@@ -73,10 +76,23 @@ async function api(path, method, body) {
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(await r.text());
-  if (r.status === 204) return null;
-  return r.json();
+  try {
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+      let detail = '';
+      try { detail = await r.text(); } catch (_) {}
+      throw new Error(r.status === 401 || r.status === 403
+        ? 'توكن GitHub غير صالح أو لا يملك صلاحية الكتابة'
+        : 'تعذر الحفظ (HTTP ' + r.status + ')' + (detail ? ': ' + detail.slice(0, 180) : ''));
+    }
+    if (r.status === 204) return null;
+    return await r.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('انتهت مهلة الاتصال. تحقق من الإنترنت ثم أعد المحاولة');
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function push(type, d) { stack.push({ type, ...d }); render(); }
@@ -116,7 +132,6 @@ function renderSections() {
       <div class="fab glass" style="flex:1;min-width:140px;" onclick="push('anns')">📢 إعلانات</div>
       <div class="fab glass" style="flex:1;min-width:140px;" onclick="push('about')">ℹ️ عن التطبيق</div>
     </div>`;
-  html += renderAccountSection();
   view.innerHTML = html;
   window.scrollTo(0, 0);
 }
@@ -176,83 +191,6 @@ async function saveAbout() {
   try {
     await saveData();
     toast('تم حفظ معلومات التطبيق', 'ok');
-  } catch (e) {
-    toast('فشل الحفظ: ' + e.message, 'bad');
-  }
-}
-
-// ===== ACCOUNT MANAGEMENT =====
-function renderAccountSection() {
-  const admin = data.admin || { username: 'admin', passwordHash: '' };
-  return `
-    <div class="account-card glass" id="account-card">
-      <h3>🔐 إدارة الحساب</h3>
-      <div class="fg">
-        <label>اسم المستخدم الحالي</label>
-        <input type="text" id="acc-current-user" value="${esc(admin.username)}" disabled style="opacity:0.6;">
-      </div>
-      <div class="fg">
-        <label>اسم المستخدم الجديد</label>
-        <input type="text" id="acc-new-user" placeholder="اتركه فارغاً إذا لم ترغب في التغيير">
-      </div>
-      <div class="divider"></div>
-      <div class="fg">
-        <label>كلمة المرور الحالية *</label>
-        <input type="password" id="acc-current-pass" placeholder="أدخل كلمة المرور الحالية للتحقق">
-      </div>
-      <div class="fg">
-        <label>كلمة المرور الجديدة</label>
-        <input type="password" id="acc-new-pass" placeholder="اتركها فارغة إذا لم ترغب في التغيير">
-      </div>
-      <div class="fg">
-        <label>تأكيد كلمة المرور الجديدة</label>
-        <input type="password" id="acc-confirm-pass" placeholder="أعد إدخال كلمة المرور الجديدة">
-      </div>
-      <button class="save-btn" onclick="saveAccountChanges()">💾 حفظ التغييرات</button>
-    </div>
-  `;
-}
-
-async function saveAccountChanges() {
-  const currentPass = document.getElementById('acc-current-pass').value;
-  const newUser = document.getElementById('acc-new-user').value.trim();
-  const newPass = document.getElementById('acc-new-pass').value;
-  const confirmPass = document.getElementById('acc-confirm-pass').value;
-
-  if (!currentPass) { toast('يجب إدخال كلمة المرور الحالية', 'bad'); return; }
-
-  const currentHash = await sha256(currentPass);
-  const admin = data.admin || { username: 'admin', passwordHash: '' };
-  const expectedHash = admin.passwordHash || await sha256('admin123');
-
-  if (currentHash !== expectedHash) { toast('كلمة المرور الحالية غير صحيحة', 'bad'); return; }
-
-  let changed = false;
-
-  if (newUser && newUser !== admin.username) {
-    data.admin = data.admin || {};
-    data.admin.username = newUser;
-    changed = true;
-  }
-
-  if (newPass) {
-    if (newPass !== confirmPass) { toast('كلمتا المرور الجديدتان غير متطابقتين', 'bad'); return; }
-    if (newPass.length < 6) { toast('يجب أن تكون كلمة المرور 6 أحرف على الأقل', 'bad'); return; }
-    data.admin = data.admin || {};
-    data.admin.passwordHash = await sha256(newPass);
-    changed = true;
-  }
-
-  if (!changed) { toast('لم يتم إجراء أي تغييرات', 'ok'); return; }
-
-  try {
-    await saveData();
-    toast('تم حفظ التغييرات بنجاح', 'ok');
-    document.getElementById('acc-current-pass').value = '';
-    document.getElementById('acc-new-pass').value = '';
-    document.getElementById('acc-confirm-pass').value = '';
-    document.getElementById('acc-new-user').value = '';
-    document.getElementById('acc-current-user').value = data.admin.username;
   } catch (e) {
     toast('فشل الحفظ: ' + e.message, 'bad');
   }
@@ -501,13 +439,29 @@ function openAddFld(sid) {
   showModal();
 }
 async function saveNewFld(sid) {
-  const n = document.getElementById('nfn').value.trim();
-  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
-  const sec = data.sections?.find(s => s.id === sid);
-  if (!sec.folders) sec.folders = [];
-  sec.folders.push({ id: 'f' + Date.now(), name: n });
-  await saveData(); hideModal(); renderSection(sid);
-  toast('تم الإضافة', 'ok');
+  const input = document.getElementById('nfn');
+  const button = document.querySelector('#modal-body .save');
+  const n = input.value.trim();
+  if (!n) { toast('الاسم مطلوب', 'bad'); input.focus(); return; }
+  const sec = data.sections?.find(s => String(s.id) === String(sid));
+  if (!sec) { toast('تعذر العثور على القسم', 'bad'); return; }
+  if (!Array.isArray(sec.folders)) sec.folders = [];
+  const folder = { id: 'f' + Date.now(), name: n };
+  if (button) { button.disabled = true; button.textContent = 'انتظر... جارٍ حفظ المجلد'; button.setAttribute('aria-busy', 'true'); }
+  input.disabled = true;
+  toast('انتظر... جارٍ إضافة المجلد', 'ok');
+  sec.folders.push(folder);
+  try {
+    await saveData();
+    hideModal();
+    renderSection(sid);
+    toast('تمت إضافة المجلد بنجاح', 'ok');
+  } catch (e) {
+    sec.folders = sec.folders.filter(f => String(f.id) !== String(folder.id));
+    if (button) { button.disabled = false; button.textContent = 'حفظ'; button.removeAttribute('aria-busy'); }
+    input.disabled = false;
+    toast('لم يُحفظ المجلد: ' + (e.message || 'تحقق من الاتصال والتوكن'), 'bad');
+  }
 }
 
 // ===== ANNOUNCEMENT CRUD =====
