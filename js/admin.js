@@ -449,7 +449,7 @@ async function saveNewFld(sid) {
     renderSection(sid);
     if (button) { button.disabled = false; button.textContent = 'حفظ'; button.removeAttribute('aria-busy'); }
     input.disabled = false;
-    toast('لم يُحفظ المجلد: ' + (e.message || 'تحقق من الاتصال وإعدادات GitHub'), 'bad');
+    toast('لم يُحفظ المجلد: ' + (e.message || 'تحقق من الاتصال ثم أعد المحاولة'), 'bad');
   }
 }
 
