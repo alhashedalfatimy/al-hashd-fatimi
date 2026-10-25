@@ -538,10 +538,8 @@ function onLogoPressEnd() {
   }
 }
 
-// ===== Admin login =====
-// GitHub Pages is static: this client-side check is not server-side authentication.
-const ADMIN_USERNAME = 'Zahraa Al-Sultan';
-const ADMIN_PASSWORD_HASH = 'b1d9647205f2b2e60756268945042912542df922ce9b6da941889763d25d14fa';
+// ===== Admin login via the secure server-side endpoint =====
+const ADMIN_API = 'https://hashed-fatimi-admin.alhashedalfatimy-admin.workers.dev';
 async function adminLogin() {
   const button = document.getElementById('admin-login');
   const u = document.getElementById('admin-user').value.trim();
@@ -551,16 +549,24 @@ async function adminLogin() {
   button.textContent = 'جارٍ التحقق...';
   error.classList.remove('on');
   try {
-    const inputHash = await sha256(p);
-    if (u === ADMIN_USERNAME && inputHash === ADMIN_PASSWORD_HASH) {
-      sessionStorage.setItem('admin_auth', 'true');
-      window.location.href = 'admin.html';
+    const response = await fetch(ADMIN_API + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p }),
+      cache: 'no-store'
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.token) {
+      error.textContent = result.error || 'بيانات الدخول غير صحيحة';
+      error.classList.add('on');
+      document.getElementById('admin-pass').value = '';
       return;
     }
-    error.classList.add('on');
-    document.getElementById('admin-pass').value = '';
+    sessionStorage.setItem('admin_session', result.token);
+    sessionStorage.setItem('admin_auth', 'true');
+    window.location.href = 'admin.html';
   } catch (e) {
-    error.textContent = 'تعذر التحقق، حاول مجدداً';
+    error.textContent = 'تعذر الاتصال بخدمة تسجيل الدخول. تحقق من الإنترنت وحاول مجدداً.';
     error.classList.add('on');
   } finally {
     button.disabled = false;
