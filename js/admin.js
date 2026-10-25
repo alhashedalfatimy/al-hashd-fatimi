@@ -452,16 +452,20 @@ async function saveNewFld(sid) {
   input.disabled = true;
   toast('انتظر... جارٍ إضافة المجلد', 'ok');
   sec.folders.push(folder);
+  // Render optimistically so the new folder appears immediately in the chosen section.
+  renderSection(sid);
   try {
     await saveData();
     hideModal();
     renderSection(sid);
     toast('تمت إضافة المجلد بنجاح', 'ok');
   } catch (e) {
+    // Roll back the optimistic UI change if the remote save fails.
     sec.folders = sec.folders.filter(f => String(f.id) !== String(folder.id));
+    renderSection(sid);
     if (button) { button.disabled = false; button.textContent = 'حفظ'; button.removeAttribute('aria-busy'); }
     input.disabled = false;
-    toast('لم يُحفظ المجلد: ' + (e.message || 'تحقق من الاتصال والتوكن'), 'bad');
+    toast('لم يُحفظ المجلد: ' + (e.message || 'تحقق من الاتصال وإعدادات GitHub'), 'bad');
   }
 }
 
