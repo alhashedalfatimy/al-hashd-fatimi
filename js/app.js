@@ -59,19 +59,28 @@ window.addEventListener('storage', (e) => {
 
 // ===== Load Data =====
 async function loadData() {
-  try {
-    const r = await fetch('content.json?nocache=' + Date.now(), { cache: 'no-store' });
-    if (r.ok) {
-      allData = await r.json();
-      if (!allData.sections) allData.sections = [];
+  const sources = [
+    'https://hashed-fatimi-admin.alhashedalfatimy-admin.workers.dev/api/contents/content.json?nocache=' + Date.now(),
+    'content.json?nocache=' + Date.now()
+  ];
+  let lastError = null;
+  for (const source of sources) {
+    try {
+      const r = await fetch(source, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const loaded = await r.json();
+      if (!loaded || !Array.isArray(loaded.sections)) throw new Error('بيانات المحتوى غير صالحة');
+      allData = loaded;
       if (!allData.announcements) allData.announcements = [];
       if (!allData.about) allData.about = {};
       if (!allData.admin) allData.admin = {};
+      return;
+    } catch (e) {
+      lastError = e;
+      console.warn('Data source unavailable:', source, e);
     }
-  } catch (e) {
-    console.error('Load error:', e);
-    allData = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: {} };
   }
+  throw lastError || new Error('تعذر تحميل البيانات');
 }
 
 // ===== Render Home =====
