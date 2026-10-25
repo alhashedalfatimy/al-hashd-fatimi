@@ -376,10 +376,13 @@ async function downloadMedia(item) {
     if (!blob.size) throw new Error('الملف فارغ');
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const extFromUrl = source.pathname.match(/\\.([a-z0-9]{1,8})$/i);
+    const fileNameFromUrl = source.pathname.split('/').pop() || '';
+    const extensionCandidate = fileNameFromUrl.includes('.') ? fileNameFromUrl.split('.').pop() : '';
+    const extension = /^[a-z0-9]{1,8}$/i.test(extensionCandidate) ? extensionCandidate : '';
     const knownExt = { image: '.jpg', video: '.mp4', audio: '.mp3' };
+    const safeTitle = Array.from(String(item.title || 'media')).map(ch => '<>:"/\\|?*'.includes(ch) ? '_' : ch).join('');
     a.href = objectUrl;
-    a.download = (item.title || 'media').replace(/[\\\\/:*?"<>|]+/g, '_') + (extFromUrl ? '.' + extFromUrl[1] : (knownExt[item.type] || ''));
+    a.download = safeTitle + (extension ? '.' + extension : (knownExt[item.type] || ''));
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
