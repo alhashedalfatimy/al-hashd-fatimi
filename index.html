@@ -204,6 +204,15 @@
       transition: all 0.2s; flex: 0 0 auto;
     }
     .a-row .ap:active { transform: scale(0.92); }
+    .media-download {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 7px 10px; border-radius: 9px; border: 1px solid var(--accent);
+      background: var(--accent-glow); color: var(--accent-light);
+      font-family: inherit; font-size: 0.72rem; font-weight: 800;
+      cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+    }
+    .media-download:active { transform: scale(0.96); }
+    .m-card > .media-download { margin: 0 10px 10px; width: calc(100% - 20px); }
     .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
     .empty .ei { font-size: 3.5rem; margin-bottom: 12px; opacity: 0.3; }
     .empty .et { font-size: 0.9rem; }
