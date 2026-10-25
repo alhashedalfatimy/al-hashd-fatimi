@@ -1,23 +1,11 @@
 let data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } };
 let stack = [];
 let upFile = null;
-const REPO = 'alhashedalfatimy/al-hashd-fatimi';
-const BRANCH = 'main';
+const ADMIN_API = 'https://hashed-fatimi-admin.alhashedalfatimy-admin.workers.dev';
 const THEME_KEY = 'alhashd_theme';
 
 function getToken() {
-  return localStorage.getItem('gh_token') || sessionStorage.getItem('gh_token') || '';
-}
-function setToken(t) {
-  localStorage.setItem('gh_token', t);
-  sessionStorage.setItem('gh_token', t);
-}
-
-// ===== SHA-256 helper =====
-async function sha256(str) {
-  const buf = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return sessionStorage.getItem('admin_session') || '';
 }
 
 // ===== Theme =====
@@ -38,56 +26,46 @@ window.addEventListener('storage', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!sessionStorage.getItem('admin_auth')) { location.href = 'index.html'; return; }
+  if (!sessionStorage.getItem('admin_auth') || !sessionStorage.getItem('admin_session')) { location.href = 'index.html'; return; }
   applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
-  // Opening the admin panel uses the normal username/password login.
-  // A GitHub token is requested only when a write operation is attempted.
+  // Authentication and writes are handled by the server-side API.
   try { await load(); setup(); renderSections(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
 });
 
 async function load() {
-  try {
-    const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/content.json?n=' + Date.now());
-    if (r.ok) {
-      data = await r.json();
-      if (!data.sections) data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } };
-      if (!data.announcements) data.announcements = [];
-      if (!data.about) data.about = {};
-      if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
-    }
-  } catch (e) { data = { version: '3.0.0.0', sections: [], announcements: [], about: {}, admin: { username: 'admin', passwordHash: '' } }; }
+  const r = await fetch(ADMIN_API + '/api/contents/content.json?nocache=' + Date.now(), { cache: 'no-store' });
+  if (!r.ok) throw new Error('تعذر تحميل بيانات الموقع (HTTP ' + r.status + ')');
+  data = await r.json();
+  if (!data.sections) data.sections = [];
+  if (!data.announcements) data.announcements = [];
+  if (!data.about) data.about = {};
+  if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
 }
 
 async function api(path, method = 'GET', body) {
-  const url = path.startsWith('http') ? path : 'https://api.github.com/repos/' + REPO + path;
-  if (method !== 'GET' && !getToken()) {
-    const token = prompt('للحفظ على GitHub، أدخل رمز الوصول الشخصي (Token) الذي يملك صلاحية Contents: Read and write. لن يُطلب للدخول إلى لوحة الإدارة.');
-    if (!token) throw new Error('أُلغي الحفظ؛ يلزم رمز GitHub لإرسال التغييرات من هذا الموقع الثابت');
-    setToken(token.trim());
-  }
+  const url = ADMIN_API + '/api' + path;
+  const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers.Authorization = 'Bearer ' + token;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000);
-  const opts = {
-    method,
-    signal: controller.signal,
-    headers: {
-      'Authorization': 'token ' + getToken(),
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json'
-    }
-  };
-  if (body) opts.body = JSON.stringify(body);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   try {
-    const r = await fetch(url, opts);
+    const r = await fetch(url, {
+      method,
+      signal: controller.signal,
+      headers,
+      cache: 'no-store',
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const result = await r.json().catch(() => ({}));
     if (!r.ok) {
-      let detail = '';
-      try { detail = await r.text(); } catch (_) {}
-      throw new Error(r.status === 401 || r.status === 403
-        ? 'توكن GitHub غير صالح أو لا يملك صلاحية الكتابة'
-        : 'تعذر الحفظ (HTTP ' + r.status + ')' + (detail ? ': ' + detail.slice(0, 180) : ''));
+      if (r.status === 401) {
+        sessionStorage.removeItem('admin_auth');
+        sessionStorage.removeItem('admin_session');
+      }
+      throw new Error(result.error || 'تعذر إتمام الطلب (HTTP ' + r.status + ')');
     }
-    if (r.status === 204) return null;
-    return await r.json();
+    return result;
   } catch (e) {
     if (e.name === 'AbortError') throw new Error('انتهت مهلة الاتصال. تحقق من الإنترنت ثم أعد المحاولة');
     throw e;
@@ -322,26 +300,32 @@ async function saveUp(sid, fid) {
     const reader = new FileReader();
     reader.readAsDataURL(upFile);
     reader.onloadend = async () => {
-      const b64 = reader.result.split(',')[1];
-      await api('/contents/' + path, 'PUT', { message: 'Upload ' + fname, content: b64, branch: BRANCH });
-      const furl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + path;
-      const sec = data.sections?.find(s => s.id === sid);
-      const item = {
-        id: Date.now(), title, description: desc,
-        folderId: fid, url: furl,
-        type: sid==='images'?'image':sid==='videos'?'video':'audio',
-        visibility: priv?'private':'public',
-        allowDownload: dl, allowShare: sh
-      };
-      if (sid === 'images') item.thumbnail = furl;
-      else if (sid === 'videos') item.thumbnail = furl;
-      else { item.cover = furl; item.duration = '--:--'; }
-      if (!sec.items) sec.items = [];
-      sec.items.push(item);
-      await saveData();
-      hideModal(); renderFolder(sid, fid);
-      toast('تم الرفع', 'ok');
+      try {
+        const b64 = reader.result.split(',')[1];
+        const savedFile = await api('/uploads/' + fname, 'PUT', { content: b64, contentType: upFile.type });
+        const furl = savedFile.url;
+        const sec = data.sections?.find(s => s.id === sid);
+        if (!sec) throw new Error('القسم المحدد غير موجود');
+        const item = {
+          id: Date.now(), title, description: desc,
+          folderId: fid, url: furl,
+          type: sid==='images'?'image':sid==='videos'?'video':'audio',
+          visibility: priv?'private':'public',
+          allowDownload: dl, allowShare: sh
+        };
+        if (sid === 'images') item.thumbnail = furl;
+        else if (sid === 'videos') item.thumbnail = furl;
+        else { item.cover = furl; item.duration = '--:--'; }
+        if (!sec.items) sec.items = [];
+        sec.items.push(item);
+        await saveData();
+        hideModal(); renderFolder(sid, fid);
+        toast('تم الرفع', 'ok');
+      } catch (err) {
+        toast('تعذر رفع الملف: ' + (err.message || 'خطأ غير معروف'), 'bad');
+      }
     };
+    reader.onerror = () => toast('تعذر قراءة الملف المحدد', 'bad');
   } catch (e) { toast('خطأ: ' + e.message, 'bad'); }
 }
 
@@ -519,12 +503,8 @@ async function delAnn(i) {
 
 // ===== SAVE =====
 async function saveData() {
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-  let sha = null;
-  try { const d = await api('/contents/content.json'); sha = d.sha; } catch (e) {}
-  const body = { message: 'Update v3', content, branch: BRANCH };
-  if (sha) body.sha = sha;
-  await api('/contents/content.json', 'PUT', body);
+  const content = JSON.stringify(data, null, 2);
+  await api('/contents/content.json', 'PUT', { content });
 }
 
 // ===== MODAL =====
@@ -533,7 +513,7 @@ function hideModal() { document.getElementById('modal-bg').classList.remove('on'
 
 // ===== SETUP =====
 function setup() {
-  document.getElementById('logout').onclick = () => { sessionStorage.removeItem('admin_auth'); location.href = 'index.html'; };
+  document.getElementById('logout').onclick = () => { sessionStorage.removeItem('admin_auth'); sessionStorage.removeItem('admin_session'); location.href = 'index.html'; };
   document.getElementById('modal-x').onclick = hideModal;
   document.getElementById('modal-bg').onclick = e => { if (e.target.id === 'modal-bg') hideModal(); };
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
