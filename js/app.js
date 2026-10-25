@@ -292,12 +292,12 @@ function openFolder(secId, foldId) {
     });
     html += `</div>`;
   }
-  if (sec.id === 'audios') {
+  if (sec.id === 'audios' || sec.defaultType === 'audio' || items.every(item => item.type === 'audio')) {
     html += `<div class="a-list">`;
     if (items.length === 0) html += `<div class="empty"><div class="ei">🎧</div><div class="et">لا توجد مقاطع</div></div>`;
     else {
       items.forEach((item, idx) => {
-        html += `<div class="a-row glass" data-idx="${idx}"><img src="${item.cover || 'https://via.placeholder.com/48'}" alt="" onerror="this.style.display='none'"><div class="ai"><div class="at">${escapeHtml(item.title)}</div><div class="ad">${escapeHtml(item.description || '')}</div></div><button class="ap">▶</button></div>`;
+        html += `<div class="a-row glass" data-idx="${idx}"><img src="${item.cover || 'https://via.placeholder.com/48'}" alt="" onerror="this.style.display='none'"><div class="ai"><div class="at">${escapeHtml(item.title)}</div><div class="ad">${escapeHtml(item.description || '')}</div></div>${item.allowDownload === false ? '' : `<button type="button" class="media-download" onclick="event.stopPropagation();downloadMediaById('${String(item.id).replace(/'/g, '&#39;')}')">⬇️ تنزيل</button>`}<button class="ap">▶</button></div>`;
       });
     }
     html += `</div>`;
@@ -306,7 +306,7 @@ function openFolder(secId, foldId) {
     if (items.length === 0) html += `<div class="empty"><div class="ei">📂</div><div class="et">لا يوجد محتوى</div></div>`;
     else {
       items.forEach(item => {
-        html += `<div class="m-card glass" data-id="${item.id}" style="position:relative;"><img src="${item.thumbnail || item.url}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300/1a1a1a/666?text=${encodeURIComponent(item.title)}'"><div class="mi"><div class="mt">${escapeHtml(item.title)}</div><div class="md">${escapeHtml(item.description || '')}</div></div></div>`;
+        html += `<div class="m-card glass" data-id="${item.id}" style="position:relative;"><img src="${item.thumbnail || item.url}" alt="${escapeHtml(item.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300/1a1a1a/666?text=${encodeURIComponent(item.title)}'"><div class="mi"><div class="mt">${escapeHtml(item.title)}</div><div class="md">${escapeHtml(item.description || '')}</div></div>${item.allowDownload === false ? '' : `<button type="button" class="media-download" onclick="event.stopPropagation();downloadMediaById('${String(item.id).replace(/'/g, '&#39;')}')">⬇️ تنزيل</button>`}</div>`;
       });
     }
     html += `</div>`;
@@ -343,6 +343,7 @@ function updateViewer() {
   const actions = document.getElementById('va');
   title.textContent = item.title;
   if (item.type === 'video') content.innerHTML = `<video src="${item.url}" controls autoplay style="max-width:100%;max-height:65vh;border-radius:12px;"></video>`;
+  else if (item.type === 'audio') content.innerHTML = `<audio src="${item.url}" controls autoplay style="width:min(90vw,480px);"></audio>`;
   else content.innerHTML = `<img src="${item.url}" alt="" style="max-width:100%;max-height:65vh;border-radius:12px;">`;
   let btns = '';
   if (item.allowDownload !== false) btns += `<button class="pri" onclick="dlCurrent()">⬇️ تنزيل</button>`;
@@ -354,21 +355,45 @@ function closeViewer() {
   document.body.style.overflow = '';
   const v = document.querySelector('#vcon video'); if (v) v.pause();
 }
+function downloadMediaById(id) {
+  const sections = allData.sections || [];
+  for (const sec of sections) {
+    const item = (sec.items || []).find(entry => String(entry.id) === String(id));
+    if (item) { downloadMedia(item); return; }
+  }
+  toast('تعذر العثور على الملف', 'bad');
+}
+async function downloadMedia(item) {
+  if (!item || item.allowDownload === false) { toast('التنزيل معطل', 'bad'); return; }
+  if (!item.url) { toast('رابط الملف غير متوفر', 'bad'); return; }
+  try {
+    toast('جارٍ تجهيز التنزيل...', 'ok');
+    const source = new URL(item.url, location.href);
+    if (source.pathname.includes('/api/uploads/')) source.searchParams.set('download', '1');
+    const response = await fetch(source.href, { mode: 'cors', cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const blob = await response.blob();
+    if (!blob.size) throw new Error('الملف فارغ');
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const extFromUrl = source.pathname.match(/\\.([a-z0-9]{1,8})$/i);
+    const knownExt = { image: '.jpg', video: '.mp4', audio: '.mp3' };
+    a.href = objectUrl;
+    a.download = (item.title || 'media').replace(/[\\\\/:*?"<>|]+/g, '_') + (extFromUrl ? '.' + extFromUrl[1] : (knownExt[item.type] || ''));
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+    toast('بدأ تنزيل الملف', 'ok');
+  } catch (e) {
+    console.error('Media download failed:', e);
+    toast('تعذر التنزيل. تحقق من اتصالك ثم أعد المحاولة', 'bad');
+  }
+}
 async function dlCurrent() {
   const item = mediaList[mediaIdx];
-  if (item.allowDownload === false) { toast('التنزيل معطل', 'bad'); return; }
-  try {
-    toast('جاري التنزيل...', 'ok');
-    const r = await fetch(item.url);
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const ext = item.type === 'video' ? '.mp4' : item.type === 'audio' ? '.mp3' : '.jpg';
-    a.download = (item.title || 'file') + ext;
-    a.click(); URL.revokeObjectURL(url);
-    toast('تم التنزيل', 'ok');
-  } catch (e) { toast('فشل التنزيل', 'bad'); }
+  await downloadMedia(item);
 }
 async function shareCurrent() {
   const item = mediaList[mediaIdx];
