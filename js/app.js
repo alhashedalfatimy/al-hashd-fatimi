@@ -520,25 +520,22 @@ function doSearch(e) {
   });
 }
 // ===== Admin =====
-function onLogoClick() {
-  logoClicks++;
-  if (logoClicks >= 5) {
-    logoClicks = 0;
-    document.getElementById('admin-ol').classList.add('on');
-    document.getElementById('admin-user').focus();
-  }
-  setTimeout(() => { logoClicks = 0; }, 2000);
-}
 function onLogoPressStart(e) {
-  e.preventDefault();
+  if (e.type === 'mousedown' && e.button !== 0) return;
+  if (logoTimer) clearTimeout(logoTimer);
   logoTimer = setTimeout(() => {
-    document.getElementById('admin-ol').classList.add('on');
-    document.getElementById('admin-user').focus();
-  }, 8000);
+    logoTimer = null;
+    const overlay = document.getElementById('admin-ol');
+    if (!overlay) return;
+    overlay.classList.add('on');
+    document.getElementById('admin-user')?.focus();
+  }, 10000);
 }
-function onLogoPressEnd(e) {
-  e.preventDefault();
-  if (logoTimer) { clearTimeout(logoTimer); logoTimer = null; }
+function onLogoPressEnd() {
+  if (logoTimer) {
+    clearTimeout(logoTimer);
+    logoTimer = null;
+  }
 }
 
 // ===== Admin login =====
@@ -602,13 +599,14 @@ async function installApp() {
 
 // ===== Events =====
 function setupEvents() {
-  const logo = document.getElementById('app-logo');
-  logo.addEventListener('click', onLogoClick);
-  logo.addEventListener('touchstart', onLogoPressStart);
-  logo.addEventListener('touchend', onLogoPressEnd);
-  logo.addEventListener('mousedown', onLogoPressStart);
-  logo.addEventListener('mouseup', onLogoPressEnd);
-  logo.addEventListener('mouseleave', onLogoPressEnd);
+  const logo = document.querySelector('#app-logo .logo-img');
+  if (logo) {
+    logo.addEventListener('contextmenu', e => e.preventDefault());
+    logo.addEventListener('pointerdown', onLogoPressStart);
+    ['pointerup', 'pointercancel', 'pointerleave', 'blur'].forEach(type =>
+      logo.addEventListener(type, onLogoPressEnd)
+    );
+  }
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
   document.getElementById('search-input').addEventListener('input', debounce(doSearch, 300));
   document.getElementById('vc').addEventListener('click', closeViewer);
