@@ -309,7 +309,7 @@ async function saveUp(sid, fid) {
         const item = {
           id: Date.now(), title, description: desc,
           folderId: fid, url: furl,
-          type: sid==='images'?'image':sid==='videos'?'video':'audio',
+          type: sec.defaultType || (sid === 'images' ? 'image' : sid === 'videos' ? 'video' : 'audio'),
           visibility: priv?'private':'public',
           allowDownload: dl, allowShare: sh
         };
@@ -382,9 +382,20 @@ async function saveNewSec() {
   const ic = document.getElementById('nsi').value.trim() || '📁';
   const t = document.getElementById('nst').value;
   if (!n) { toast('الاسم مطلوب', 'bad'); return; }
-  data.sections.push({ id: 's' + Date.now(), name: n, icon: ic, folders: [], items: [], defaultType: t });
-  await saveData(); hideModal(); renderSections();
-  toast('تم الإضافة', 'ok');
+  const section = { id: 's' + Date.now(), name: n, icon: ic, folders: [], items: [], defaultType: t };
+  const button = document.querySelector('#modal-body .save');
+  if (button) { button.disabled = true; button.textContent = 'جارٍ الحفظ...'; }
+  data.sections.push(section);
+  try {
+    await saveData();
+    hideModal();
+    renderSections();
+    toast('تم حفظ القسم وإضافته بنجاح', 'ok');
+  } catch (e) {
+    data.sections = data.sections.filter(s => String(s.id) !== String(section.id));
+    if (button) { button.disabled = false; button.textContent = 'حفظ'; }
+    toast('لم يُحفظ القسم: ' + (e.message || 'تحقق من الاتصال ثم أعد المحاولة'), 'bad');
+  }
 }
 
 // ===== FOLDER CRUD =====
