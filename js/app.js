@@ -292,7 +292,7 @@ function openFolder(secId, foldId) {
     });
     html += `</div>`;
   }
-  if (sec.id === 'audios' || sec.defaultType === 'audio' || items.every(item => item.type === 'audio')) {
+  if (sec.id === 'audios' || sec.defaultType === 'audio' || (items.length > 0 && items.every(item => item.type === 'audio'))) {
     html += `<div class="a-list">`;
     if (items.length === 0) html += `<div class="empty"><div class="ei">🎧</div><div class="et">لا توجد مقاطع</div></div>`;
     else {
