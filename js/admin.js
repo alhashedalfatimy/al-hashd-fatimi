@@ -40,12 +40,8 @@ window.addEventListener('storage', (e) => {
 document.addEventListener('DOMContentLoaded', async () => {
   if (!sessionStorage.getItem('admin_auth')) { location.href = 'index.html'; return; }
   applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
-  let t = getToken();
-  if (!t) {
-    t = prompt('توكن GitHub:');
-    if (!t) { toast('التوكن مطلوب', 'bad'); return; }
-    setToken(t);
-  }
+  // Opening the admin panel uses the normal username/password login.
+  // A GitHub token is requested only when a write operation is attempted.
   try { await load(); setup(); renderSections(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
 });
 
@@ -64,6 +60,11 @@ async function load() {
 
 async function api(path, method = 'GET', body) {
   const url = path.startsWith('http') ? path : 'https://api.github.com/repos/' + REPO + path;
+  if (method !== 'GET' && !getToken()) {
+    const token = prompt('للحفظ على GitHub، أدخل رمز الوصول الشخصي (Token) الذي يملك صلاحية Contents: Read and write. لن يُطلب للدخول إلى لوحة الإدارة.');
+    if (!token) throw new Error('أُلغي الحفظ؛ يلزم رمز GitHub لإرسال التغييرات من هذا الموقع الثابت');
+    setToken(token.trim());
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
   const opts = {
