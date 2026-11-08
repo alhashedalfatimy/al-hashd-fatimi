@@ -22,6 +22,22 @@
       "icon": "🎧",
       "folders": [],
       "items": []
+    },
+    {
+      "id": "fonts",
+      "name": "الخطوط",
+      "icon": "🔤",
+      "defaultType": "font",
+      "folders": [],
+      "items": []
+    },
+    {
+      "id": "chroma",
+      "name": "الكروما",
+      "icon": "🎬",
+      "defaultType": "video",
+      "folders": [],
+      "items": []
     }
   ],
   "about": {
