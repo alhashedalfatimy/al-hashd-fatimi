@@ -99,6 +99,7 @@ function pop() { stack.pop(); render(); }
 function render() {
   const c = stack[stack.length - 1];
   if (!c || c.type === 'sections') renderSections();
+  else if (c.type === 'folderSections') renderFolderSections();
   else if (c.type === 'section') renderSection(c.id);
   else if (c.type === 'folder') renderFolder(c.sid, c.fid);
   else if (c.type === 'anns') renderAnns();
@@ -110,27 +111,49 @@ function renderSections() {
   stack = [{ type: 'sections' }];
   const view = document.getElementById('view');
   const secs = data.sections || [];
-  let html = '<div class="page-title">📋 الأقسام</div>';
+  let html = '<div class="page-title">📋 إدارة الأقسام الرئيسية</div>';
+  html += '<div class="page-title" style="font-size:.78rem;color:var(--text2);font-weight:600;">الأقسام التي تظهر كأزرار مستقلة في الواجهة الرئيسية</div>';
   if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
   else secs.forEach((s, i) => {
     html += `
-      <div class="card glass" onclick="push('section',{id:'${s.id}'})">
+      <div class="card glass">
         <div class="info"><div class="icon">${s.icon||'📁'}</div><div>
           <div class="name">${esc(s.name)}</div>
           <div class="meta">${s.folders?.length||0} مجلد · ${s.items?.length||0} عنصر</div>
         </div></div>
         <div class="actions">
-          <button class="ed" onclick="event.stopPropagation();editSec(${i})">✏️</button>
-          <button class="del" onclick="event.stopPropagation();delSec(${i})">🗑</button>
+          <button class="ed" title="تعديل القسم" onclick="editSec(${i})">✏️</button>
+          <button class="del" title="حذف القسم" onclick="delSec(${i})">🗑</button>
         </div>
       </div>`;
   });
   html += `
-    <div style="display:flex;gap:10px;margin:14px 16px;flex-wrap:wrap;">
-      <div class="fab glass" style="flex:1;min-width:140px;" onclick="openAddSec()">➕ قسم</div>
-      <div class="fab glass" style="flex:1;min-width:140px;" onclick="push('anns')">📢 إعلانات</div>
-      <div class="fab glass" style="flex:1;min-width:140px;" onclick="push('about')">ℹ️ عن التطبيق</div>
-    </div>`;
+    <div class="fab glass" onclick="openAddSec()">➕ إضافة قسم رئيسي</div>
+    <div class="fab glass" onclick="push('folderSections',{})">📁 إدارة المجلدات داخل الأقسام</div>
+    <div class="fab glass" onclick="push('anns',{})">📢 نشر إعلان</div>
+    <div class="fab glass" onclick="push('about',{})">ℹ️ إدارة معلومات التطبيق</div>`;
+  view.innerHTML = html;
+  window.scrollTo(0, 0);
+}
+
+function renderFolderSections() {
+  const view = document.getElementById('view');
+  let html = `
+    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
+    <span class="sep">|</span><span class="crumb">📁 إدارة المجلدات</span></div>
+    <div class="page-title">اختر القسم الذي تريد إدارة مجلداته</div>`;
+  const secs = data.sections || [];
+  if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
+  else secs.forEach(sec => {
+    html += `
+      <div class="card glass" onclick="push('section',{id:'${String(sec.id).replace(/'/g, '&#39;')}'})">
+        <div class="info"><div class="icon">${sec.icon || '📁'}</div><div>
+          <div class="name">${esc(sec.name)}</div>
+          <div class="meta">${sec.folders?.length || 0} مجلد</div>
+        </div></div>
+        <div class="actions"><span style="color:var(--accent-light);font-weight:800;">إدارة ←</span></div>
+      </div>`;
+  });
   view.innerHTML = html;
   window.scrollTo(0, 0);
 }
@@ -236,7 +259,7 @@ function renderSection(sid) {
   let html = `
     <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">${esc(sec.name)}</span></div>
-    <div class="page-title">📁 المجلدات</div>`;
+    <div class="page-title">📁 مجلدات قسم: ${esc(sec.name)}</div>`;
   if (!folders.length) html += '<div class="empty"><div class="ei">📁</div><div>لا توجد مجلدات</div></div>';
   else folders.forEach((f, i) => {
     const cnt = (sec.items||[]).filter(x => x.folderId === f.id).length;
@@ -293,7 +316,7 @@ function renderAnns() {
   let html = `
     <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">📢 الإعلانات</span></div>
-    <div class="page-title">📢 الإعلانات</div>`;
+    <div class="page-title">📢 إدارة ونشر الإعلانات</div>`;
   if (!anns.length) html += '<div class="empty"><div class="ei">📢</div><div>لا توجد إعلانات</div></div>';
   else anns.forEach((a, i) => {
     html += `
@@ -308,7 +331,7 @@ function renderAnns() {
         </div>
       </div>`;
   });
-  html += `<div class="fab glass" onclick="openAddAnn()">➕ إعلان جديد</div>`;
+  html += `<div class="fab glass" onclick="openAddAnn()">📢 نشر إعلان جديد</div>`;
   view.innerHTML = html; window.scrollTo(0, 0);
 }
 
@@ -422,11 +445,23 @@ async function saveEditSec(i) {
   toast('تم التعديل', 'ok');
 }
 async function delSec(i) {
-  if (!confirm('حذف القسم وجميع محتوياته؟')) return;
+  const section = data.sections[i];
+  if (!section) return;
+  const folderCount = (section.folders || []).length;
+  const itemCount = (section.items || []).length;
+  if (!confirm(`حذف القسم "${section.name}" نهائياً مع ${folderCount} مجلد و${itemCount} عنصر تابع له؟`)) return;
   data.sections.splice(i, 1);
-  await saveData(); renderSections();
-  toast('تم الحذف', 'ok');
+  try {
+    await saveData();
+    renderSections();
+    toast('تم حذف القسم وجميع محتوياته من الموقع', 'ok');
+  } catch (e) {
+    data.sections.splice(i, 0, section);
+    renderSections();
+    toast('تعذر حذف القسم: ' + e.message, 'bad');
+  }
 }
+
 function openAddSec() {
   const body = document.getElementById('modal-body');
   document.getElementById('modal-title').textContent = '➕ قسم جديد';
@@ -491,19 +526,33 @@ async function saveEditFld(sid, i) {
   }
 }
 async function delFld(sid, i) {
-  if (!confirm('حذف المجلد؟ (العناصر ستصبح بدون مجلد)')) return;
-  const sec = data.sections?.find(s => s.id === sid);
-  if (!sec || !sec.folders?.[i]) { toast('المجلد غير موجود', 'bad'); return; }
+  const sec = data.sections?.find(s => String(s.id) === String(sid));
+  const folder = sec?.folders?.[i];
+  if (!sec || !folder) { toast('المجلد غير موجود', 'bad'); return; }
+
+  const ids = new Set();
+  const collect = current => {
+    if (!current || ids.has(String(current.id))) return;
+    ids.add(String(current.id));
+    const embedded = current.folders || current.subfolders || current.children || [];
+    embedded.forEach(collect);
+    (sec.folders || []).filter(candidate =>
+      String(candidate.parentId || candidate.parentFolderId || '') === String(current.id)
+    ).forEach(collect);
+  };
+  collect(folder);
+  const removedFolders = (sec.folders || []).filter(f => ids.has(String(f.id)));
+  const removedItems = (sec.items || []).filter(item => ids.has(String(item.folderId)));
+  if (!confirm(`حذف المجلد "${folder.name}" ومجلداته الفرعية و${removedItems.length} عنصر تابع له؟ لن تتأثر بقية المجلدات أو الأقسام.`)) return;
+
   const previousFolders = sec.folders.slice();
-  const previousItems = (sec.items || []).map(item => ({ ...item }));
-  const fid = sec.folders[i].id;
-  sec.folders.splice(i, 1);
-  (sec.items||[]).forEach(it => { if (String(it.folderId) === String(fid)) delete it.folderId; });
-  renderSection(sid);
+  const previousItems = (sec.items || []).slice();
+  sec.folders = sec.folders.filter(f => !ids.has(String(f.id)));
+  sec.items = (sec.items || []).filter(item => !ids.has(String(item.folderId)));
   try {
     await saveData();
     renderSection(sid);
-    toast('تم الحذف', 'ok');
+    toast('تم حذف المجلد ومحتوياته التابعة', 'ok');
   } catch (e) {
     sec.folders = previousFolders;
     sec.items = previousItems;
@@ -511,6 +560,7 @@ async function delFld(sid, i) {
     toast('تعذر حذف المجلد: ' + e.message, 'bad');
   }
 }
+
 function openAddFld(sid) {
   const body = document.getElementById('modal-body');
   document.getElementById('modal-title').textContent = '➕ مجلد جديد';
@@ -552,12 +602,12 @@ async function saveNewFld(sid) {
 // ===== ANNOUNCEMENT CRUD =====
 function openAddAnn() {
   const body = document.getElementById('modal-body');
-  document.getElementById('modal-title').textContent = '➕ إعلان جديد';
+  document.getElementById('modal-title').textContent = '📢 نشر إعلان جديد';
   body.innerHTML = `
     <div class="fg"><label>العنوان</label><input type="text" id="nat" placeholder="عنوان الإعلان"></div>
     <div class="fg"><label>النص</label><input type="text" id="nax" placeholder="نص الإعلان"></div>
     <div class="fg"><label class="chk"><input type="checkbox" id="naa" checked> <span>نشط</span></label></div>
-    <button class="save" onclick="saveNewAnn()">حفظ</button>`;
+    <button class="save" onclick="saveNewAnn()">نشر الإعلان</button>`;
   showModal();
 }
 async function saveNewAnn() {
@@ -566,10 +616,22 @@ async function saveNewAnn() {
   const a = document.getElementById('naa').checked;
   if (!t) { toast('العنوان مطلوب', 'bad'); return; }
   if (!data.announcements) data.announcements = [];
-  data.announcements.push({ id: Date.now(), title: t, text: x, active: a, date: new Date().toISOString().split('T')[0] });
-  await saveData(); hideModal(); renderAnns();
-  toast('تم الإضافة', 'ok');
+  const announcement = { id: Date.now(), title: t, text: x, active: a, date: new Date().toISOString().split('T')[0] };
+  const button = document.querySelector('#modal-body .save');
+  if (button) { button.disabled = true; button.textContent = 'جارٍ النشر...'; }
+  data.announcements.push(announcement);
+  try {
+    await saveData();
+    hideModal();
+    renderAnns();
+    toast('تم نشر الإعلان بنجاح', 'ok');
+  } catch (e) {
+    data.announcements = data.announcements.filter(item => String(item.id) !== String(announcement.id));
+    if (button) { button.disabled = false; button.textContent = 'نشر الإعلان'; }
+    toast('تعذر نشر الإعلان: ' + e.message, 'bad');
+  }
 }
+
 function editAnn(i) {
   const a = data.announcements[i];
   const body = document.getElementById('modal-body');
