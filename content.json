@@ -7,7 +7,19 @@
       "name": "الصور",
       "icon": "🖼",
       "folders": [],
-      "items": []
+      "items": [
+        {
+          "id": 1792953140340,
+          "title": "1792610998445_edit_1168519107700233",
+          "description": "",
+          "url": "https://hashed-fatimi-admin.alhashedalfatimy-admin.workers.dev/api/uploads/1792953139731_1792610998445_edit_1168519107700233.jpg",
+          "type": "image",
+          "visibility": "public",
+          "allowDownload": true,
+          "allowShare": false,
+          "thumbnail": "https://hashed-fatimi-admin.alhashedalfatimy-admin.workers.dev/api/uploads/1792953139731_1792610998445_edit_1168519107700233.jpg"
+        }
+      ]
     },
     {
       "id": "videos",
@@ -27,9 +39,9 @@
       "id": "fonts",
       "name": "الخطوط",
       "icon": "🔤",
-      "defaultType": "font",
       "folders": [],
-      "items": []
+      "items": [],
+      "defaultType": "font"
     },
     {
       "id": "chroma",
