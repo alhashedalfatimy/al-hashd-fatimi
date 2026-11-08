@@ -76,7 +76,6 @@ async function loadData() {
       if (!allData.announcements) allData.announcements = [];
       if (!allData.about) allData.about = {};
       if (!allData.admin) allData.admin = {};
-      ensureCoreSections(allData);
       return;
     } catch (e) {
       lastError = e;
@@ -86,17 +85,6 @@ async function loadData() {
   throw lastError || new Error('تعذر تحميل البيانات');
 }
 
-function ensureCoreSections(target) {
-  const core = [
-    { id: 'fonts', name: 'الخطوط', icon: '🔤', defaultType: 'font' },
-    { id: 'chroma', name: 'الكروما', icon: '🎬', defaultType: 'video' }
-  ];
-  core.forEach(base => {
-    if (!target.sections.some(section => String(section.id) === base.id)) {
-      target.sections.push({ ...base, folders: [], items: [] });
-    }
-  });
-}
 
 function renderNavigation() {
   const nav = document.querySelector('.bnav');
