@@ -246,15 +246,17 @@
     .player .pc button { width: 34px; height: 34px; background: var(--accent-glow); border: 1px solid var(--accent); border-radius: 50%; color: var(--accent-light); font-size: 0.8rem; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .bnav {
       position: fixed; bottom: 0; left: 0; right: 0;
-      display: flex; justify-content: space-around;
-      padding: 6px 0 14px; z-index: 100;
+      display: flex; justify-content: flex-start; gap: 4px;
+      padding: 6px 8px 14px; z-index: 100;
+      overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
       backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     }
+    .bnav::-webkit-scrollbar { display: none; }
     .bnav button {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      display: flex; flex: 0 0 auto; min-width: 62px; flex-direction: column; align-items: center; gap: 2px;
       background: none; border: none; color: var(--text3);
       font-family: inherit; font-size: 0.6rem; font-weight: 700; cursor: pointer;
-      padding: 4px 10px; transition: color 0.2s; position: relative;
+      padding: 4px 9px; transition: color 0.2s; position: relative;
     }
     .bnav button.on { color: var(--accent); }
     .bnav button .ni { font-size: 1.25rem; }
@@ -430,24 +432,8 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
-  <nav class="bnav glass">
-    <button class="on" data-page="home" onclick="goHome()">
-      <span class="ni">🏠</span><span>الرئيسية</span>
-    </button>
-    <button data-page="fonts" onclick="navTo('fonts')">
-      <span class="ni">🔤</span><span>الخطوط</span>
-    </button>
-    <button data-page="chroma" onclick="navTo('chroma')">
-      <span class="ni">🎬</span><span>الكروما</span>
-    </button>
-    <button data-page="announcements" onclick="navTo('announcements')">
-      <span class="ni">📢</span><span class="badge" id="ann-badge"></span><span>إعلانات</span>
-    </button>
-    <button data-page="about" onclick="navTo('about')">
-      <span class="ni">ℹ️</span><span>عن التطبيق</span>
-    </button>
-  </nav>
+  <nav class="bnav glass" aria-label="التنقل الرئيسي"></nav>
   <script src="js/db.js"></script>
-  <script src="js/app.js?v=20261108-folder-count-v1"></script>
+  <script src="js/app.js?v=20261108-dynamic-sections-v1"></script>
 </body>
 </html>
