@@ -422,18 +422,41 @@ async function saveEditFld(sid, i) {
   const n = document.getElementById('efn').value.trim();
   if (!n) { toast('الاسم مطلوب', 'bad'); return; }
   const sec = data.sections?.find(s => s.id === sid);
+  if (!sec || !sec.folders?.[i]) { toast('المجلد غير موجود', 'bad'); return; }
+  const previousName = sec.folders[i].name;
+  const button = document.querySelector('#modal-body .save');
+  if (button) { button.disabled = true; button.textContent = 'جارٍ الحفظ...'; }
   sec.folders[i].name = n;
-  await saveData(); hideModal(); renderSection(sid);
-  toast('تم التعديل', 'ok');
+  try {
+    await saveData();
+    hideModal(); renderSection(sid);
+    toast('تم التعديل', 'ok');
+  } catch (e) {
+    sec.folders[i].name = previousName;
+    if (button) { button.disabled = false; button.textContent = 'حفظ'; }
+    toast('تعذر تعديل المجلد: ' + e.message, 'bad');
+  }
 }
 async function delFld(sid, i) {
   if (!confirm('حذف المجلد؟ (العناصر ستصبح بدون مجلد)')) return;
   const sec = data.sections?.find(s => s.id === sid);
+  if (!sec || !sec.folders?.[i]) { toast('المجلد غير موجود', 'bad'); return; }
+  const previousFolders = sec.folders.slice();
+  const previousItems = (sec.items || []).map(item => ({ ...item }));
   const fid = sec.folders[i].id;
   sec.folders.splice(i, 1);
-  (sec.items||[]).forEach(it => { if (it.folderId === fid) delete it.folderId; });
-  await saveData(); renderSection(sid);
-  toast('تم الحذف', 'ok');
+  (sec.items||[]).forEach(it => { if (String(it.folderId) === String(fid)) delete it.folderId; });
+  renderSection(sid);
+  try {
+    await saveData();
+    renderSection(sid);
+    toast('تم الحذف', 'ok');
+  } catch (e) {
+    sec.folders = previousFolders;
+    sec.items = previousItems;
+    renderSection(sid);
+    toast('تعذر حذف المجلد: ' + e.message, 'bad');
+  }
 }
 function openAddFld(sid) {
   const body = document.getElementById('modal-body');
@@ -522,9 +545,14 @@ async function delAnn(i) {
 }
 
 // ===== SAVE =====
-async function saveData() {
-  const content = JSON.stringify(data, null, 2);
-  await api('/contents/content.json', 'PUT', { content });
+let saveQueue = Promise.resolve();
+function saveData() {
+  const operation = saveQueue.catch(() => {}).then(() => {
+    const content = JSON.stringify(data, null, 2);
+    return api('/contents/content.json', 'PUT', { content });
+  });
+  saveQueue = operation;
+  return operation;
 }
 
 // ===== MODAL =====
