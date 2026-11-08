@@ -203,12 +203,33 @@ function showAnnouncement() {
 function closeAnn() { document.getElementById('ann-bar').classList.remove('on'); }
 
 // ===== Announcement Badge =====
+const ANNOUNCEMENTS_SEEN_KEY = 'alhashd_seen_announcements_v1';
+function getSeenAnnouncementIds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ANNOUNCEMENTS_SEEN_KEY) || '[]');
+    return new Set(Array.isArray(saved) ? saved.map(String) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+function markAnnouncementsAsSeen() {
+  const activeIds = (allData.announcements || [])
+    .filter(a => a.active)
+    .map(a => String(a.id));
+  try {
+    localStorage.setItem(ANNOUNCEMENTS_SEEN_KEY, JSON.stringify(activeIds));
+  } catch (e) {
+    console.warn('تعذر حفظ حالة قراءة الإعلانات:', e);
+  }
+  updateAnnBadge();
+}
 function updateAnnBadge() {
   const badge = document.getElementById('ann-badge');
   if (!badge) return;
-  const hasActive = (allData.announcements || []).some(a => a.active);
-  if (hasActive) badge.classList.add('on');
-  else badge.classList.remove('on');
+  const seen = getSeenAnnouncementIds();
+  const hasUnread = (allData.announcements || []).some(a => a.active && !seen.has(String(a.id)));
+  badge.classList.toggle('on', hasUnread);
+  badge.setAttribute('aria-label', hasUnread ? 'توجد إعلانات جديدة' : 'لا توجد إعلانات جديدة');
 }
 
 // ===== Render Announcements Page =====
@@ -292,6 +313,7 @@ function navTo(page) {
 
   if (page === 'announcements') {
     renderAnnouncementsPage();
+    markAnnouncementsAsSeen();
   } else if (page === 'about') {
     renderAboutPage();
   } else if ((allData.sections || []).some(section => String(section.id) === String(page))) {
