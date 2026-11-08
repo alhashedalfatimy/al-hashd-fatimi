@@ -94,7 +94,8 @@ function renderHome() {
     sections.forEach(sec => {
       const folders = sec.folders || [];
       const items = sec.items || [];
-      const total = items.length;
+      // The section badge represents folders, not media items.
+      const total = folders.length;
       html += `<div class="sec-group">
         <div class="sec-header">
           <div class="sec-label"><span class="ic">${sec.icon || '📁'}</span><span>${escapeHtml(sec.name)}</span></div>
