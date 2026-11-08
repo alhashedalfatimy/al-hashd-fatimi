@@ -135,8 +135,15 @@ async function syncPublicData() {
     if (currentPage === 'announcements') renderAnnouncementsPage();
     else if (currentPage === 'about') renderAboutPage();
     else if ((allData.sections || []).some(section => String(section.id) === String(currentPage))) {
-      if (currentSecId && currentFoldId) openFolder(currentSecId, currentFoldId);
-      else renderSectionPage(currentPage);
+      const activeSection = allData.sections.find(section => String(section.id) === String(currentPage));
+      if (currentSecId && currentFoldId) {
+        if (findFolderPath(activeSection, currentFoldId)) openFolder(currentSecId, currentFoldId);
+        else navTo(String(activeSection.id));
+      } else renderSectionPage(currentPage);
+    } else if (currentPage !== 'home') {
+      currentSecId = null;
+      currentFoldId = null;
+      navTo('home');
     }
   } catch (e) {
     console.warn('تعذرت مزامنة أقسام الموقع:', e);
