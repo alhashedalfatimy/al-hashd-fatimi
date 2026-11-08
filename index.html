@@ -434,16 +434,20 @@
     <button class="on" data-page="home" onclick="goHome()">
       <span class="ni">🏠</span><span>الرئيسية</span>
     </button>
+    <button data-page="fonts" onclick="navTo('fonts')">
+      <span class="ni">🔤</span><span>الخطوط</span>
+    </button>
+    <button data-page="chroma" onclick="navTo('chroma')">
+      <span class="ni">🎬</span><span>الكروما</span>
+    </button>
     <button data-page="announcements" onclick="navTo('announcements')">
-      <span class="ni">📢</span>
-      <span class="badge" id="ann-badge"></span>
-      <span>إعلانات</span>
+      <span class="ni">📢</span><span class="badge" id="ann-badge"></span><span>إعلانات</span>
     </button>
     <button data-page="about" onclick="navTo('about')">
       <span class="ni">ℹ️</span><span>عن التطبيق</span>
     </button>
   </nav>
   <script src="js/db.js"></script>
-  <script src="js/app.js?v=20261108-fonts-chroma"></script>
+  <script src="js/app.js?v=20261108-main-sections"></script>
 </body>
 </html>
