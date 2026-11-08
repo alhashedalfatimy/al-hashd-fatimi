@@ -292,7 +292,15 @@ function openFolder(secId, foldId) {
     });
     html += `</div>`;
   }
-  if (sec.id === 'audios' || sec.defaultType === 'audio' || (items.length > 0 && items.every(item => item.type === 'audio'))) {
+  if (sec.id === 'fonts' || sec.defaultType === 'font') {
+    html += `<div class="font-list">`;
+    if (items.length === 0) html += `<div class="empty"><div class="ei">🔤</div><div class="et">لا توجد ملفات خطوط</div></div>`;
+    else items.forEach(item => {
+      const ext = String(item.fileName || item.url || '').split('?')[0].split('.').pop().toUpperCase();
+      html += `<div class="a-row glass font-row"><div class="font-file-icon">🔤</div><div class="ai"><div class="at">${escapeHtml(item.title)}</div><div class="ad">${escapeHtml(item.fileName || ext + ' Font')}</div></div>${item.allowDownload === false ? '' : `<button type="button" class="media-download" onclick="event.stopPropagation();downloadMediaById('${String(item.id).replace(/'/g, '&#39;')}')">⬇️ تنزيل</button>`}</div>`;
+    });
+    html += `</div>`;
+  } else if (sec.id === 'audios' || sec.defaultType === 'audio' || (items.length > 0 && items.every(item => item.type === 'audio'))) {
     html += `<div class="a-list">`;
     if (items.length === 0) html += `<div class="empty"><div class="ei">🎧</div><div class="et">لا توجد مقاطع</div></div>`;
     else {
@@ -321,7 +329,7 @@ function openFolder(secId, foldId) {
     page.querySelectorAll('.ap').forEach(btn => {
       btn.addEventListener('click', (e) => { e.stopPropagation(); playAudio(parseInt(btn.closest('.a-row').dataset.idx)); });
     });
-  } else {
+  } else if (sec.id !== 'fonts' && sec.defaultType !== 'font') {
     page.querySelectorAll('.m-card').forEach(card => {
       card.addEventListener('click', () => { const id = parseInt(card.dataset.id); openViewer(id, items); });
     });
@@ -379,7 +387,7 @@ async function downloadMedia(item) {
     const fileNameFromUrl = source.pathname.split('/').pop() || '';
     const extensionCandidate = fileNameFromUrl.includes('.') ? fileNameFromUrl.split('.').pop() : '';
     const extension = /^[a-z0-9]{1,8}$/i.test(extensionCandidate) ? extensionCandidate : '';
-    const knownExt = { image: '.jpg', video: '.mp4', audio: '.mp3' };
+    const knownExt = { image: '.jpg', video: '.mp4', audio: '.mp3', font: '.ttf' };
     const safeTitle = Array.from(String(item.title || 'media')).map(ch => '<>:"/\\|?*'.includes(ch) ? '_' : ch).join('');
     a.href = objectUrl;
     a.download = safeTitle + (extension ? '.' + extension : (knownExt[item.type] || ''));
