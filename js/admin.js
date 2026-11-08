@@ -29,17 +29,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!sessionStorage.getItem('admin_auth') || !sessionStorage.getItem('admin_session')) { location.href = 'index.html'; return; }
   applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
   // Authentication and writes are handled by the server-side API.
-  try { await load(); setup(); renderSections(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
+  try { await load(); setup(); renderSections(); startAdminSync(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
 });
 
 async function load() {
   const r = await fetch(ADMIN_API + '/api/contents/content.json?nocache=' + Date.now(), { cache: 'no-store' });
   if (!r.ok) throw new Error('تعذر تحميل بيانات الموقع (HTTP ' + r.status + ')');
   data = await r.json();
-  if (!data.sections) data.sections = [];
+  if (!Array.isArray(data.sections)) data.sections = [];
   if (!data.announcements) data.announcements = [];
   if (!data.about) data.about = {};
   if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
+  const addedCoreSections = ensureCoreSections(data);
+  if (addedCoreSections) {
+    try { await saveData(); }
+    catch (e) { console.warn('تعذر حفظ الأقسام الأساسية تلقائياً:', e); }
+  }
+}
+
+function ensureCoreSections(target) {
+  let changed = false;
+  const core = [
+    { id: 'fonts', name: 'الخطوط', icon: '🔤', defaultType: 'font' },
+    { id: 'chroma', name: 'الكروما', icon: '🎬', defaultType: 'video' }
+  ];
+  core.forEach(base => {
+    if (!target.sections.some(section => String(section.id) === base.id)) {
+      target.sections.push({ ...base, folders: [], items: [] });
+      changed = true;
+    }
+  });
+  return changed;
 }
 
 async function api(path, method = 'GET', body) {
@@ -113,6 +133,39 @@ function renderSections() {
     </div>`;
   view.innerHTML = html;
   window.scrollTo(0, 0);
+}
+
+let adminSyncTimer = null;
+let adminSyncInProgress = false;
+let adminWritesInProgress = 0;
+async function syncAdminData() {
+  if (adminSyncInProgress || adminWritesInProgress || document.hidden || document.getElementById('modal-bg')?.classList.contains('on')) return;
+  adminSyncInProgress = true;
+  try {
+    const r = await fetch(ADMIN_API + '/api/contents/content.json?nocache=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const latest = await r.json();
+    if (!latest || !Array.isArray(latest.sections)) return;
+    if (!latest.announcements) latest.announcements = [];
+    if (!latest.about) latest.about = {};
+    if (!latest.admin) latest.admin = { username: 'admin', passwordHash: '' };
+    const added = ensureCoreSections(latest);
+    if (JSON.stringify(latest) !== JSON.stringify(data)) {
+      data = latest;
+      render();
+    }
+    if (added) await saveData();
+  } catch (e) {
+    console.warn('تعذر مزامنة بيانات الإدارة:', e);
+  } finally {
+    adminSyncInProgress = false;
+  }
+}
+function startAdminSync() {
+  if (adminSyncTimer) clearInterval(adminSyncTimer);
+  adminSyncTimer = setInterval(syncAdminData, 30000);
+  window.addEventListener('focus', syncAdminData);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncAdminData(); });
 }
 
 // ===== ABOUT APP =====
@@ -212,8 +265,8 @@ function renderFolder(sid, fid) {
     <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">${esc(fld.name)}</span></div>
     <div class="page-title">📂 ${esc(fld.name)}</div>
-    <div class="upload-zone glass" id="uz"><div class="u-icon">📤</div><div class="u-text">${sid === 'fonts' ? 'اضغط لإرفاق ملفات الخطوط' : 'اضغط لإضافة وسائط'}</div>
-    <input type="file" id="uf" multiple accept="${sid === 'fonts' ? '.ttf,.otf,.woff,.woff2,.ttc,font/ttf,font/otf,font/woff,font/woff2' : 'image/*,video/*,audio/*'}" style="display:none;"></div>`;
+    <div class="upload-zone glass" id="uz"><div class="u-icon">📤</div><div class="u-text">${(sid === 'fonts' || sec?.defaultType === 'font') ? 'اضغط لإرفاق ملفات الخطوط' : 'اضغط لإضافة وسائط'}</div>
+    <input type="file" id="uf" multiple accept="${(sid === 'fonts' || sec?.defaultType === 'font') ? '.ttf,.otf,.woff,.woff2,.ttc,font/ttf,font/otf,font/woff,font/woff2' : 'image/*,video/*,audio/*'}" style="display:none;"></div>`;
   if (!items.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد وسائط</div></div>';
   else items.forEach(it => {
     const thumb = it.thumbnail || it.cover || it.url || '';
@@ -298,7 +351,7 @@ async function saveUp(sid, fid) {
   try {
     const secForUpload = data.sections?.find(s => s.id === sid);
     if (!secForUpload) throw new Error('القسم المحدد غير موجود');
-    const isFont = sid === 'fonts';
+    const isFont = sid === 'fonts' || secForUpload.defaultType === 'font';
     const allowedFont = /\.(ttf|otf|woff2?|ttc)$/i.test(upFile.name);
     if (isFont && !allowedFont) throw new Error('صيغة الخط غير مدعومة. استخدم TTF أو OTF أو WOFF أو WOFF2 أو TTC');
     const fname = Date.now() + '_' + upFile.name.replace(/[^\p{L}\p{N}._-]+/gu, '_');
@@ -547,12 +600,15 @@ async function delAnn(i) {
 // ===== SAVE =====
 let saveQueue = Promise.resolve();
 function saveData() {
+  adminWritesInProgress += 1;
   const operation = saveQueue.catch(() => {}).then(() => {
     const content = JSON.stringify(data, null, 2);
     return api('/contents/content.json', 'PUT', { content });
   });
-  saveQueue = operation;
-  return operation;
+  saveQueue = operation.finally(() => {
+    adminWritesInProgress = Math.max(0, adminWritesInProgress - 1);
+  });
+  return saveQueue;
 }
 
 // ===== MODAL =====
