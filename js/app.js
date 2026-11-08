@@ -102,7 +102,7 @@ function renderNavigation() {
     return button;
   };
   addButton('home', '🏠', 'الرئيسية', goHome);
-  (allData.sections || []).forEach(section => {
+  (allData.sections || []).filter(section => String(section.id) !== 'home').forEach(section => {
     addButton(String(section.id), section.icon || '📁', section.name || 'قسم', () => navTo(String(section.id)));
   });
   addButton('announcements', '📢', 'إعلانات', () => navTo('announcements'));
@@ -134,7 +134,7 @@ async function syncPublicData() {
     updateAnnBadge();
     if (currentPage === 'announcements') renderAnnouncementsPage();
     else if (currentPage === 'about') renderAboutPage();
-    else if ((allData.sections || []).some(section => String(section.id) === String(currentPage))) {
+    else if ((allData.sections || []).some(section => String(section.id) !== 'home' && String(section.id) === String(currentPage))) {
       const activeSection = allData.sections.find(section => String(section.id) === String(currentPage));
       if (currentSecId && currentFoldId) {
         if (findFolderPath(activeSection, currentFoldId)) openFolder(currentSecId, currentFoldId);
@@ -161,7 +161,8 @@ function startPublicSync() {
 // ===== Render Home =====
 function renderHome() {
   const container = document.getElementById('home-content');
-  const sections = allData.sections || [];
+  const homeSection = (allData.sections || []).find(section => String(section.id) === 'home');
+  const sections = homeSection ? [homeSection] : [];
   let html = '';
   if (sections.length === 0) {
     html = `<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام بعد</div></div>`;
@@ -316,7 +317,7 @@ function navTo(page) {
     markAnnouncementsAsSeen();
   } else if (page === 'about') {
     renderAboutPage();
-  } else if ((allData.sections || []).some(section => String(section.id) === String(page))) {
+  } else if (page !== 'home' && (allData.sections || []).some(section => String(section.id) === String(page))) {
     renderSectionPage(page);
   }
 
