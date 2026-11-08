@@ -212,8 +212,8 @@ function renderFolder(sid, fid) {
     <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">${esc(fld.name)}</span></div>
     <div class="page-title">📂 ${esc(fld.name)}</div>
-    <div class="upload-zone glass" id="uz"><div class="u-icon">📤</div><div class="u-text">اضغط لإضافة وسائط</div>
-    <input type="file" id="uf" multiple accept="image/*,video/*,audio/*" style="display:none;"></div>`;
+    <div class="upload-zone glass" id="uz"><div class="u-icon">📤</div><div class="u-text">${sid === 'fonts' ? 'اضغط لإرفاق ملفات الخطوط' : 'اضغط لإضافة وسائط'}</div>
+    <input type="file" id="uf" multiple accept="${sid === 'fonts' ? '.ttf,.otf,.woff,.woff2,.ttc,font/ttf,font/otf,font/woff,font/woff2' : 'image/*,video/*,audio/*'}" style="display:none;"></div>`;
   if (!items.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد وسائط</div></div>';
   else items.forEach(it => {
     const thumb = it.thumbnail || it.cover || it.url || '';
@@ -269,7 +269,8 @@ function openUp(e, sid, fid) {
   document.getElementById('modal-title').textContent = '📤 رفع وسائط';
   const url = URL.createObjectURL(upFile);
   let preview = '';
-  if (upFile.type.startsWith('image/')) preview = `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:12px;margin-bottom:14px;">`;
+  if (sec?.id === 'fonts') preview = `<div style="font-size:2.5rem;margin-bottom:14px;">🔤</div><div>${esc(upFile.name)}</div>`;
+  else if (upFile.type.startsWith('image/')) preview = `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:12px;margin-bottom:14px;">`;
   else if (upFile.type.startsWith('video/')) preview = `<video src="${url}" controls style="max-width:100%;max-height:160px;border-radius:12px;margin-bottom:14px;"></video>`;
   else preview = `<div style="font-size:2.5rem;margin-bottom:14px;">🎧</div>`;
   body.innerHTML = `
@@ -295,7 +296,12 @@ async function saveUp(sid, fid) {
   if (!upFile) { toast('اختر ملفاً', 'bad'); return; }
   toast('جاري الرفع...', 'ok');
   try {
-    const fname = Date.now() + '_' + upFile.name.replace(/\s+/g, '_');
+    const secForUpload = data.sections?.find(s => s.id === sid);
+    if (!secForUpload) throw new Error('القسم المحدد غير موجود');
+    const isFont = sid === 'fonts';
+    const allowedFont = /\.(ttf|otf|woff2?|ttc)$/i.test(upFile.name);
+    if (isFont && !allowedFont) throw new Error('صيغة الخط غير مدعومة. استخدم TTF أو OTF أو WOFF أو WOFF2 أو TTC');
+    const fname = Date.now() + '_' + upFile.name.replace(/[^\p{L}\p{N}._-]+/gu, '_');
     const path = 'uploads/' + fname;
     const reader = new FileReader();
     reader.readAsDataURL(upFile);
@@ -306,15 +312,18 @@ async function saveUp(sid, fid) {
         const furl = savedFile.url;
         const sec = data.sections?.find(s => s.id === sid);
         if (!sec) throw new Error('القسم المحدد غير موجود');
+        const fontMime = ({ ttf: 'font/ttf', otf: 'font/otf', woff: 'font/woff', woff2: 'font/woff2', ttc: 'font/collection' })[upFile.name.split('.').pop().toLowerCase()];
         const item = {
           id: Date.now(), title, description: desc,
-          folderId: fid, url: furl,
-          type: sec.defaultType || (sid === 'images' ? 'image' : sid === 'videos' ? 'video' : 'audio'),
+          folderId: fid, url: furl, fileName: upFile.name,
+          type: isFont ? 'font' : (sec.defaultType || (sid === 'images' ? 'image' : sid === 'videos' ? 'video' : 'audio')),
+          contentType: upFile.type || fontMime || 'application/octet-stream',
           visibility: priv?'private':'public',
           allowDownload: dl, allowShare: sh
         };
         if (sid === 'images') item.thumbnail = furl;
         else if (sid === 'videos') item.thumbnail = furl;
+        else if (sid === 'fonts') item.fileName = upFile.name;
         else { item.cover = furl; item.duration = '--:--'; }
         if (!sec.items) sec.items = [];
         sec.items.push(item);
