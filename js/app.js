@@ -218,6 +218,8 @@ function navTo(page) {
     renderAnnouncementsPage();
   } else if (page === 'about') {
     renderAboutPage();
+  } else if (page === 'fonts' || page === 'chroma') {
+    renderSectionPage(page);
   }
 
   const target = document.getElementById('page-' + page);
@@ -225,8 +227,38 @@ function navTo(page) {
 
   const btn = document.querySelector(`.bnav button[data-page="${page}"]`);
   if (btn) btn.classList.add('on');
+  if (page === 'fonts' || page === 'chroma') {
+    currentSecId = page;
+    currentFoldId = null;
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderSectionPage(secId) {
+  const sec = (allData.sections || []).find(s => String(s.id) === String(secId));
+  if (!sec) return;
+  let page = document.getElementById('page-' + secId);
+  if (!page) {
+    page = document.createElement('div');
+    page.id = 'page-' + secId;
+    page.className = 'page';
+    document.getElementById('dynamic-pages').appendChild(page);
+  }
+  const tree = getFolderTree(sec);
+  const folders = tree.roots;
+  let html = `<div class="breadcrumb"><span class="crumb">${escapeHtml(sec.icon || '📁')} ${escapeHtml(sec.name)}</span></div>`;
+  if (!folders.length) {
+    html += `<div class="empty"><div class="ei">📂</div><div class="et">لا توجد مجلدات في هذا القسم حالياً</div></div>`;
+  } else {
+    html += '<div class="folders-row" style="padding:0;">';
+    folders.forEach(folder => {
+      const count = (sec.items || []).filter(item => String(item.folderId) === String(folder.id)).length;
+      html += `<div class="folder-chip glass" onclick="openFolder('${String(sec.id)}', '${String(folder.id)}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(folder.name)}</div><div class="fcnt">${count} عنصر</div></div>`;
+    });
+    html += '</div>';
+  }
+  page.innerHTML = html;
 }
 
 function goHome() {
@@ -280,10 +312,12 @@ function openFolder(secId, foldId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
+  const sectionNavButton = document.querySelector(`.bnav button[data-page="${String(sec.id)}"]`);
+  if (sectionNavButton) sectionNavButton.classList.add('on');
   const items = (sec.items || []).filter(i => String(i.folderId) === String(foldId) && i.visibility !== 'private');
   const tree = getFolderTree(sec);
   const childFolders = tree.childrenOf(fold);
-  let html = `<div class="breadcrumb"><span class="crumb">${(folderPath || [fold]).map(f => escapeHtml(f.name)).join(' ← ')}</span></div>`;
+  let html = `<div class="breadcrumb"><button class="back glass" onclick="navTo('${String(sec.id)}')">← رجوع إلى ${escapeHtml(sec.name)}</button><span class="crumb">${(folderPath || [fold]).map(f => escapeHtml(f.name)).join(' ← ')}</span></div>`;
   if (childFolders.length) {
     html += `<div class="folders-row" style="padding:0 0 14px;">`;
     childFolders.forEach(child => {
