@@ -40,27 +40,8 @@ async function load() {
   if (!data.announcements) data.announcements = [];
   if (!data.about) data.about = {};
   if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
-  const addedCoreSections = ensureCoreSections(data);
-  if (addedCoreSections) {
-    try { await saveData(); }
-    catch (e) { console.warn('تعذر حفظ الأقسام الأساسية تلقائياً:', e); }
-  }
 }
 
-function ensureCoreSections(target) {
-  let changed = false;
-  const core = [
-    { id: 'fonts', name: 'الخطوط', icon: '🔤', defaultType: 'font' },
-    { id: 'chroma', name: 'الكروما', icon: '🎬', defaultType: 'video' }
-  ];
-  core.forEach(base => {
-    if (!target.sections.some(section => String(section.id) === base.id)) {
-      target.sections.push({ ...base, folders: [], items: [] });
-      changed = true;
-    }
-  });
-  return changed;
-}
 
 async function api(path, method = 'GET', body) {
   const url = ADMIN_API + '/api' + path;
@@ -172,12 +153,10 @@ async function syncAdminData() {
     if (!latest.announcements) latest.announcements = [];
     if (!latest.about) latest.about = {};
     if (!latest.admin) latest.admin = { username: 'admin', passwordHash: '' };
-    const added = ensureCoreSections(latest);
     if (JSON.stringify(latest) !== JSON.stringify(data)) {
       data = latest;
       render();
     }
-    if (added) await saveData();
   } catch (e) {
     console.warn('تعذر مزامنة بيانات الإدارة:', e);
   } finally {
@@ -541,7 +520,6 @@ async function delFld(sid, i) {
     ).forEach(collect);
   };
   collect(folder);
-  const removedFolders = (sec.folders || []).filter(f => ids.has(String(f.id)));
   const removedItems = (sec.items || []).filter(item => ids.has(String(item.folderId)));
   if (!confirm(`حذف المجلد "${folder.name}" ومجلداته الفرعية و${removedItems.length} عنصر تابع له؟ لن تتأثر بقية المجلدات أو الأقسام.`)) return;
 
