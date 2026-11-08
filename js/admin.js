@@ -461,7 +461,7 @@ function openAddSec() {
     <div class="fg"><label>الاسم</label><input type="text" id="nsn" placeholder="مثال: المقالات"></div>
     <div class="fg"><label>الأيقونة</label><input type="text" id="nsi" value="📁" maxlength="2"></div>
     <div class="fg"><label>النوع</label>
-      <select id="nst"><option value="image">🖼 صور</option><option value="video">🎥 فيديو</option><option value="audio">🎧 صوت</option></select>
+      <select id="nst"><option value="image">🖼 صور</option><option value="video">🎥 فيديو</option><option value="audio">🎧 صوت</option><option value="font">🔤 خطوط</option></select>
     </div>
     <button class="save" onclick="saveNewSec()">حفظ</button>`;
   showModal();
