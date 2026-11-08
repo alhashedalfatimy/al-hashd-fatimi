@@ -24,7 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadData();
     setupEvents();
     setupPWA();
+    renderNavigation();
     renderHome();
+    startPublicSync();
     showAnnouncement();
     updateAnnBadge();
     renderAboutPage();
@@ -74,6 +76,7 @@ async function loadData() {
       if (!allData.announcements) allData.announcements = [];
       if (!allData.about) allData.about = {};
       if (!allData.admin) allData.admin = {};
+      ensureCoreSections(allData);
       return;
     } catch (e) {
       lastError = e;
@@ -81,6 +84,83 @@ async function loadData() {
     }
   }
   throw lastError || new Error('تعذر تحميل البيانات');
+}
+
+function ensureCoreSections(target) {
+  const core = [
+    { id: 'fonts', name: 'الخطوط', icon: '🔤', defaultType: 'font' },
+    { id: 'chroma', name: 'الكروما', icon: '🎬', defaultType: 'video' }
+  ];
+  core.forEach(base => {
+    if (!target.sections.some(section => String(section.id) === base.id)) {
+      target.sections.push({ ...base, folders: [], items: [] });
+    }
+  });
+}
+
+function renderNavigation() {
+  const nav = document.querySelector('.bnav');
+  if (!nav) return;
+  nav.innerHTML = '';
+  const addButton = (page, icon, label, action) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.page = page;
+    button.innerHTML = '<span class="ni"></span><span></span>';
+    button.children[0].textContent = icon;
+    button.children[1].textContent = label;
+    button.addEventListener('click', action);
+    nav.appendChild(button);
+    return button;
+  };
+  addButton('home', '🏠', 'الرئيسية', goHome);
+  (allData.sections || []).forEach(section => {
+    addButton(String(section.id), section.icon || '📁', section.name || 'قسم', () => navTo(String(section.id)));
+  });
+  addButton('announcements', '📢', 'إعلانات', () => navTo('announcements'));
+  const announcementsButton = nav.querySelector('button[data-page="announcements"]');
+  if (announcementsButton) {
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.id = 'ann-badge';
+    announcementsButton.insertBefore(badge, announcementsButton.children[1]);
+  }
+  addButton('about', 'ℹ️', 'عن التطبيق', () => navTo('about'));
+  updateAnnBadge();
+  const active = Array.from(nav.querySelectorAll('button')).find(button => button.dataset.page === String(currentPage));
+  if (active) active.classList.add('on');
+}
+
+let publicSyncTimer = null;
+let publicSyncInProgress = false;
+async function syncPublicData() {
+  if (publicSyncInProgress || document.hidden) return;
+  publicSyncInProgress = true;
+  try {
+    const previous = JSON.stringify(allData);
+    await loadData();
+    if (previous === JSON.stringify(allData)) return;
+    renderNavigation();
+    renderHome();
+    showAnnouncement();
+    updateAnnBadge();
+    if (currentPage === 'announcements') renderAnnouncementsPage();
+    else if (currentPage === 'about') renderAboutPage();
+    else if ((allData.sections || []).some(section => String(section.id) === String(currentPage))) {
+      if (currentSecId && currentFoldId) openFolder(currentSecId, currentFoldId);
+      else renderSectionPage(currentPage);
+    }
+  } catch (e) {
+    console.warn('تعذرت مزامنة أقسام الموقع:', e);
+  } finally {
+    publicSyncInProgress = false;
+  }
+}
+function startPublicSync() {
+  if (publicSyncTimer) clearInterval(publicSyncTimer);
+  publicSyncTimer = setInterval(syncPublicData, 30000);
+  window.addEventListener('focus', syncPublicData);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncPublicData(); });
 }
 
 // ===== Render Home =====
@@ -219,16 +299,16 @@ function navTo(page) {
     renderAnnouncementsPage();
   } else if (page === 'about') {
     renderAboutPage();
-  } else if (page === 'fonts' || page === 'chroma') {
+  } else if ((allData.sections || []).some(section => String(section.id) === String(page))) {
     renderSectionPage(page);
   }
 
   const target = document.getElementById('page-' + page);
   if (target) target.classList.add('on');
 
-  const btn = document.querySelector(`.bnav button[data-page="${page}"]`);
+  const btn = Array.from(document.querySelectorAll('.bnav button')).find(button => button.dataset.page === String(page));
   if (btn) btn.classList.add('on');
-  if (page === 'fonts' || page === 'chroma') {
+  if ((allData.sections || []).some(section => String(section.id) === String(page))) {
     currentSecId = page;
     currentFoldId = null;
   }
@@ -313,7 +393,7 @@ function openFolder(secId, foldId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   page.classList.add('on');
   document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
-  const sectionNavButton = document.querySelector(`.bnav button[data-page="${String(sec.id)}"]`);
+  const sectionNavButton = Array.from(document.querySelectorAll('.bnav button')).find(button => button.dataset.page === String(sec.id));
   if (sectionNavButton) sectionNavButton.classList.add('on');
   const items = (sec.items || []).filter(i => String(i.folderId) === String(foldId) && i.visibility !== 'private');
   const tree = getFolderTree(sec);
