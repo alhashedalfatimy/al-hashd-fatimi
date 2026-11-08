@@ -93,8 +93,21 @@ function renderSections() {
   const view = document.getElementById('view');
   const secs = data.sections || [];
   let html = '<div class="page-title">📋 إدارة الأقسام الرئيسية</div>';
-  html += '<div class="page-title" style="font-size:.78rem;color:var(--text2);font-weight:600;">الأقسام التي تظهر كأزرار مستقلة في الواجهة الرئيسية</div>';
-  if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
+  html += '<div class="page-title" style="font-size:.78rem;color:var(--text2);font-weight:600;">صفحات الموقع الأساسية</div>';
+  [
+    { name: 'الرئيسية', icon: '🏠', note: 'صفحة عرض محتوى الموقع' },
+    { name: 'الإعلانات', icon: '📢', note: 'صفحة الإعلانات المنشورة' },
+    { name: 'عن التطبيق', icon: 'ℹ️', note: 'معلومات التطبيق' }
+  ].forEach(page => {
+    html += `
+      <div class="card glass" style="cursor:default;">
+        <div class="info"><div class="icon">${page.icon}</div><div>
+          <div class="name">${page.name}</div><div class="meta">${page.note} · صفحة ثابتة</div>
+        </div></div>
+      </div>`;
+  });
+  html += '<div class="page-title">الأقسام القابلة للإدارة والإضافة والحذف</div>';
+  if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام إضافية</div></div>';
   else secs.forEach((s, i) => {
     html += `
       <div class="card glass">
