@@ -37,6 +37,20 @@ async function load() {
   if (!r.ok) throw new Error('تعذر تحميل بيانات الموقع (HTTP ' + r.status + ')');
   data = await r.json();
   if (!Array.isArray(data.sections)) data.sections = [];
+  // The homepage has its own data container and is never a user-created section.
+  let homeSection = data.sections.find(section => String(section.id) === 'home');
+  if (!homeSection) {
+    homeSection = { id: 'home', name: 'الرئيسية', icon: '🏠', folders: [], items: [] };
+    data.sections.push(homeSection);
+    await saveData();
+  } else {
+    homeSection.name = 'الرئيسية';
+    homeSection.icon = '🏠';
+    if (!Array.isArray(homeSection.folders)) homeSection.folders = [];
+    if (!Array.isArray(homeSection.items)) homeSection.items = [];
+    data.sections = data.sections.filter(section => String(section.id) !== 'home');
+    data.sections.push(homeSection);
+  }
   if (!data.announcements) data.announcements = [];
   if (!data.about) data.about = {};
   if (!data.admin) data.admin = { username: 'admin', passwordHash: '' };
@@ -91,7 +105,7 @@ function render() {
 function renderSections() {
   stack = [{ type: 'sections' }];
   const view = document.getElementById('view');
-  const secs = data.sections || [];
+  const secs = (data.sections || []).filter(section => String(section.id) !== 'home');
   let html = '<div class="page-title">📋 إدارة الأقسام الرئيسية</div>';
   html += '<div class="page-title" style="font-size:.78rem;color:var(--text2);font-weight:600;">صفحات الموقع الأساسية</div>';
   [
@@ -108,7 +122,8 @@ function renderSections() {
   });
   html += '<div class="page-title">الأقسام القابلة للإدارة والإضافة والحذف</div>';
   if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام إضافية</div></div>';
-  else secs.forEach((s, i) => {
+  else secs.forEach(s => {
+    const i = data.sections.indexOf(s);
     html += `
       <div class="card glass">
         <div class="info"><div class="icon">${s.icon||'📁'}</div><div>
@@ -136,7 +151,8 @@ function renderFolderSections() {
     <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
     <span class="sep">|</span><span class="crumb">📁 إدارة المجلدات</span></div>
     <div class="page-title">اختر القسم الذي تريد إدارة مجلداته</div>`;
-  const secs = data.sections || [];
+  const home = data.sections.find(section => String(section.id) === 'home');
+  const secs = [home, ...(data.sections || []).filter(section => String(section.id) !== 'home')].filter(Boolean);
   if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
   else secs.forEach(sec => {
     html += `
@@ -438,7 +454,7 @@ async function saveEditSec(i) {
 }
 async function delSec(i) {
   const section = data.sections[i];
-  if (!section) return;
+  if (!section || String(section.id) === 'home') { toast('لا يمكن حذف الصفحة الرئيسية', 'bad'); return; }
   const folderCount = (section.folders || []).length;
   const itemCount = (section.items || []).length;
   if (!confirm(`حذف القسم "${section.name}" نهائياً مع ${folderCount} مجلد و${itemCount} عنصر تابع له؟`)) return;
@@ -474,7 +490,9 @@ async function saveNewSec() {
   const section = { id: 's' + Date.now(), name: n, icon: ic, folders: [], items: [], defaultType: t };
   const button = document.querySelector('#modal-body .save');
   if (button) { button.disabled = true; button.textContent = 'جارٍ الحفظ...'; }
-  data.sections.push(section);
+  const homeIndex = data.sections.findIndex(existing => String(existing.id) === 'home');
+  if (homeIndex >= 0) data.sections.splice(homeIndex, 0, section);
+  else data.sections.push(section);
   try {
     await saveData();
     hideModal();
