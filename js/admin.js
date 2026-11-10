@@ -29,8 +29,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!sessionStorage.getItem('admin_auth') || !sessionStorage.getItem('admin_session')) { location.href = 'index.html'; return; }
   applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
   // Authentication and writes are handled by the server-side API.
-  try { await load(); setup(); renderSections(); startAdminSync(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
+  try { await load(); await ensureDefaultMediaFolders(); setup(); renderSections(); startAdminSync(); } catch (e) { toast('خطأ في التحميل', 'bad'); }
 });
+
+async function ensureDefaultMediaFolders() {
+ const imams=['الإمام علي بن أبي طالب','الإمام الحسن بن علي','الإمام الحسين بن علي','الإمام علي زين العابدين','الإمام محمد الباقر','الإمام جعفر الصادق','الإمام موسى الكاظم','الإمام علي الرضا','الإمام محمد الجواد','الإمام علي الهادي','الإمام الحسن العسكري','الإمام محمد المهدي'];
+ const categories=[
+  {name:'صور',icon:'🖼️',type:'image',aliases:['صور','الصور']},
+  {name:'فيديوهات',icon:'🎥',type:'video',aliases:['فيديوهات','الفيديوهات','فيديو','الفيديو']},
+  {name:'صوتيات',icon:'🎧',type:'audio',aliases:['صوتيات','الصوتيات','صوت','الصوت']}
+ ];
+ const normalize=value=>String(value||'').replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[\sـ]/g,'').toLowerCase();
+ let changed=false;if(!Array.isArray(data.sections))data.sections=[];
+ let home=data.sections.find(section=>String(section.id)==='home');
+ if(!home){home={id:'home',name:'الرئيسية',icon:'🏠',folders:[],items:[]};data.sections.push(home);changed=true;}
+ for(const spec of categories){
+  const aliases=new Set(spec.aliases.map(normalize));
+  let section=data.sections.find(item=>String(item.parentId||'')==='home'&&aliases.has(normalize(item.name)));
+  if(!section){section={id:'s'+Date.now()+Math.random().toString(36).slice(2,7),name:spec.name,icon:spec.icon,parentId:'home',defaultType:spec.type,folders:[],items:[]};const homeIndex=data.sections.findIndex(item=>String(item.id)==='home');data.sections.splice(homeIndex<0?data.sections.length:homeIndex,0,section);changed=true;}
+  section.parentId='home';if(!section.icon)section.icon=spec.icon;if(!section.defaultType)section.defaultType=spec.type;
+  if(!Array.isArray(section.folders))section.folders=[];if(!Array.isArray(section.items))section.items=[];
+  const existing=new Set(section.folders.map(folder=>normalize(folder.name)));
+  for(const name of imams)if(!existing.has(normalize(name))){section.folders.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,8),name});existing.add(normalize(name));changed=true;}
+ }
+ if(changed)await saveData();
+}
 
 async function load() {
   const r = await fetch(ADMIN_API + '/api/contents/content.json?nocache=' + Date.now(), { cache: 'no-store' });
