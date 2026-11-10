@@ -126,20 +126,25 @@ function startPublicSync() {
 
 // ===== Render Home =====
 function renderHome() {
- const container=document.getElementById('home-content'),home=(allData.sections||[]).find(s=>String(s.id)==='home');
- const children=(allData.sections||[]).filter(s=>String(s.parentId||'')==='home');let html='';
- if(children.length)children.forEach(sec=>{
-  const folders=sec.folders||[];
-  html+=`<section class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">${escapeHtml(sec.icon||'📁')}</span><span>${escapeHtml(sec.name)}</span></div><span class="sec-count glass">${folders.length} مجلد</span></div>`;
-  if(folders.length){html+='<div class="folders-row">';folders.forEach(folder=>{
-   const count=(sec.items||[]).filter(item=>String(item.folderId)===String(folder.id)).length;
-   html+=`<div class="folder-chip glass" style="display:flex;flex-direction:column;align-items:center;gap:9px;min-width:145px;"><div class="fic">📁</div><div class="fnm">${escapeHtml(folder.name)}</div><div class="fcnt">${count} عنصر</div><button type="button" class="folder-enter" style="border:0;border-radius:9px;padding:8px 12px;background:var(--accent);color:#fff;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;" onclick="event.stopPropagation();openFolder('${String(sec.id).replace(/'/g,'&#39;')}','${String(folder.id).replace(/'/g,'&#39;')}')">دخول للقسم</button></div>`;
-  });html+='</div>';}else html+='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد مجلدات في هذا القسم بعد</div></div>';
+ const container=document.getElementById('home-content');
+ const children=(allData.sections||[]).filter(s=>String(s.parentId||'')==='home');
+ let html='';
+ children.forEach(sec=>{
+  const folders=getFolderTree(sec).roots;
+  const preview=folders.slice(0,2);
+  html+='<section class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">'+escapeHtml(sec.icon||'📁')+'</span><span>'+escapeHtml(sec.name)+'</span></div></div>';
+  if(preview.length){
+   html+='<div class="folders-row">';
+   preview.forEach(folder=>{
+    const count=(sec.items||[]).filter(item=>String(item.folderId)===String(folder.id)).length;
+    html+='<div class="folder-chip glass" style="display:flex;flex-direction:column;align-items:center;gap:9px;min-width:145px;"><div class="fic">📁</div><div class="fnm">'+escapeHtml(folder.name)+'</div><div class="fcnt">'+count+' عنصر</div><button type="button" class="folder-enter" style="border:0;border-radius:9px;padding:8px 12px;background:var(--accent);color:#fff;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;" onclick="event.stopPropagation();openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(folder.id).replace(/'/g,'&#39;')+'\')">دخول</button></div>';
+   });
+   html+='</div>';
+  } else html+='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد مجلدات في هذا القسم بعد</div></div>';
+  if(folders.length>2)html+='<div style="padding:0 18px 14px;"><button type="button" class="back glass" style="width:100%;padding:11px;" onclick="openFolderDirectory(\''+String(sec.id).replace(/'/g,'&#39;')+'\')">دخول لبقية المجلدات ('+(folders.length-2)+')</button></div>';
   html+='</section>';
  });
- if(home&&(home.folders||[]).length){const folders=home.folders||[];html+=`<section class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">🏠</span><span>مجلدات الرئيسية</span></div><span class="sec-count glass">${folders.length}</span></div><div class="folders-row">`;
- folders.forEach(folder=>{const count=(home.items||[]).filter(item=>String(item.folderId)===String(folder.id)).length;html+=`<div class="folder-chip glass" onclick="openFolder('home','${String(folder.id).replace(/'/g,'&#39;')}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(folder.name)}</div><div class="fcnt">${count} عنصر</div></div>`;});html+='</div></section>';}
- if(!children.length&&!(home&&(home.folders||[]).length))html='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام أو مجلدات بعد</div></div>';
+ if(!children.length)html='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام بعد</div></div>';
  container.innerHTML=html;
 }
 // ===== Announcement Bar =====
@@ -257,7 +262,13 @@ function renderAboutPage() {
 }
 
 // ===== Navigation =====
+function setFolderNavigationMode(active) {
+ const nav=document.querySelector('.bnav');
+ if(nav)nav.style.display=active?'none':'';
+ document.body.classList.toggle('folder-navigation-mode',!!active);
+}
 function navTo(page) {
+ setFolderNavigationMode(false);
  if(page!=='home'&&page!=='announcements'&&page!=='about'){openSection(page);return;}
  currentPage=page;currentSecId=null;currentFoldId=null;
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.bnav button').forEach(x=>x.classList.remove('on'));
@@ -267,6 +278,7 @@ function navTo(page) {
  window.scrollTo({top:0,behavior:'smooth'});
 }
 function openSection(secId) {
+ setFolderNavigationMode(true);
  const sec=(allData.sections||[]).find(s=>String(s.id)===String(secId));
  if(!sec||String(sec.id)==='home'){navTo('home');return;}
  currentPage=String(sec.id);currentSecId=String(sec.id);currentFoldId=null;
@@ -280,16 +292,27 @@ function openSection(secId) {
 function renderSectionPage(secId) {
  const sec=(allData.sections||[]).find(s=>String(s.id)===String(secId));if(!sec)return;
  let page=document.getElementById('page-'+secId);if(!page){page=document.createElement('div');page.id='page-'+secId;page.className='page';document.getElementById('dynamic-pages').appendChild(page);}
- const children=(allData.sections||[]).filter(c=>String(c.parentId||'')===String(sec.id)),tree=getFolderTree(sec),folders=tree.roots;
- let html=`<div class="breadcrumb"><button class="back glass" onclick="openSection('${String(sec.parentId||'home').replace(/'/g,'&#39;')}')">← رجوع</button><span class="crumb">${escapeHtml(sec.icon||'📁')} ${escapeHtml(sec.name)}</span></div>`;
- if(children.length){html+=`<div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📂</span><span>الأقسام الفرعية</span></div><span class="sec-count glass">${children.length}</span></div><div class="folders-row" style="padding:0;">`;
- children.forEach(c=>{const cc=allData.sections.filter(n=>String(n.parentId||'')===String(c.id)).length,fc=(c.folders||[]).length;html+=`<div class="folder-chip glass" onclick="openSection('${String(c.id).replace(/'/g,'&#39;')}')"><div class="fic">${escapeHtml(c.icon||'📁')}</div><div class="fnm">${escapeHtml(c.name)}</div><div class="fcnt">${cc} قسم فرعي · ${fc} مجلد</div></div>`;});html+='</div></div>';}
- if(folders.length){html+=`<div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📁</span><span>المجلدات</span></div><span class="sec-count glass">${folders.length}</span></div><div class="folders-row" style="padding:0;">`;
- folders.forEach(f=>{const count=(sec.items||[]).filter(i=>String(i.folderId)===String(f.id)).length;html+=`<div class="folder-chip glass" onclick="openFolder('${String(sec.id).replace(/'/g,'&#39;')}','${String(f.id).replace(/'/g,'&#39;')}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(f.name)}</div><div class="fcnt">${count} عنصر</div></div>`;});html+='</div></div>';}
+ const children=(allData.sections||[]).filter(c=>String(c.parentId||'')===String(sec.id)),folders=getFolderTree(sec).roots;
+ let html='<div class="breadcrumb"><button class="back glass" onclick="goHome()">← رجوع للرئيسية</button><span class="crumb">'+escapeHtml(sec.icon||'📁')+' '+escapeHtml(sec.name)+'</span></div>';
+ if(children.length){html+='<div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📂</span><span>الأقسام الفرعية</span></div><span class="sec-count glass">'+children.length+'</span></div><div class="folders-row" style="padding:0;">';
+ children.forEach(c=>{html+='<div class="folder-chip glass" onclick="openSection(\''+String(c.id).replace(/'/g,'&#39;')+'\')"><div class="fic">'+escapeHtml(c.icon||'📁')+'</div><div class="fnm">'+escapeHtml(c.name)+'</div></div>';});html+='</div></div>';}
+ if(folders.length){html+='<div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📁</span><span>المجلدات</span></div><span class="sec-count glass">'+folders.length+'</span></div><div class="folders-row" style="padding:0;">';
+ folders.forEach(f=>{const count=(sec.items||[]).filter(i=>String(i.folderId)===String(f.id)).length;html+='<div class="folder-chip glass" onclick="openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(f.id).replace(/'/g,'&#39;')+'\')"><div class="fic">📁</div><div class="fnm">'+escapeHtml(f.name)+'</div><div class="fcnt">'+count+' عنصر</div><button type="button" class="folder-enter" onclick="event.stopPropagation();openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(f.id).replace(/'/g,'&#39;')+'\')">دخول</button></div>';});html+='</div></div>';}
  if(!children.length&&!folders.length)html+='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام فرعية أو مجلدات في هذا المستوى حالياً</div></div>';
  page.innerHTML=html;
 }
+function openFolderDirectory(secId) {
+ const sec=(allData.sections||[]).find(s=>String(s.id)===String(secId));if(!sec)return;
+ setFolderNavigationMode(true);currentPage=String(sec.id);currentSecId=String(sec.id);currentFoldId=null;
+ let page=document.getElementById('page-'+secId+'-folders');if(!page){page=document.createElement('div');page.id='page-'+secId+'-folders';page.className='page';document.getElementById('dynamic-pages').appendChild(page);}
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));page.classList.add('on');
+ const folders=getFolderTree(sec).roots.slice(2);
+ let html='<div class="breadcrumb"><button class="back glass" onclick="goHome()">← رجوع للرئيسية</button><span class="crumb">'+escapeHtml(sec.name)+' · بقية المجلدات</span></div><div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📁</span><span>مجلدات '+escapeHtml(sec.name)+'</span></div><span class="sec-count glass">'+folders.length+'</span></div><div class="folders-row" style="padding:0;">';
+ folders.forEach(f=>{const count=(sec.items||[]).filter(i=>String(i.folderId)===String(f.id)).length;html+='<div class="folder-chip glass" onclick="openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(f.id).replace(/'/g,'&#39;')+'\')"><div class="fic">📁</div><div class="fnm">'+escapeHtml(f.name)+'</div><div class="fcnt">'+count+' عنصر</div><button type="button" class="folder-enter" onclick="event.stopPropagation();openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(f.id).replace(/'/g,'&#39;')+'\')">دخول</button></div>';});
+ html+='</div></div>';page.innerHTML=html;window.scrollTo({top:0,behavior:'smooth'});
+}
 function goHome() {
+  setFolderNavigationMode(false);
   currentSecId = null; currentFoldId = null;
   navTo('home'); renderHome();
 }
@@ -325,6 +348,7 @@ function findFolderPath(sec, folderId) {
   return legacy ? [legacy] : null;
 }
 function openFolder(secId,foldId) {
+ setFolderNavigationMode(true);
  currentSecId=String(secId);currentFoldId=String(foldId);
  const sec=allData.sections?.find(s=>String(s.id)===String(secId)),folderPath=findFolderPath(sec,foldId),fold=folderPath?.[folderPath.length-1]||sec?.folders?.find(f=>String(f.id)===String(foldId));
  if(!sec||!fold)return;
@@ -333,7 +357,7 @@ function openFolder(secId,foldId) {
  let root=sec;const visited=new Set();while(root.parentId&&String(root.parentId)!=='home'&&!visited.has(String(root.id))){visited.add(String(root.id));root=(allData.sections||[]).find(s=>String(s.id)===String(root.parentId))||root;}
  const nav=document.querySelector('.bnav button[data-page="'+String(root.id).replace(/"/g,'\\"')+'"]');if(nav)nav.classList.add('on');
  const items=(sec.items||[]).filter(i=>String(i.folderId)===String(foldId)&&i.visibility!=='private'),tree=getFolderTree(sec),childFolders=tree.childrenOf(fold);
- let html=`<div class="breadcrumb"><button class="back glass" onclick="openSection('${String(sec.id).replace(/'/g,'&#39;')}')">← رجوع إلى ${escapeHtml(sec.name)}</button><span class="crumb">${(folderPath||[fold]).map(f=>escapeHtml(f.name)).join(' ← ')}</span></div>`;
+ let html=`<div class="breadcrumb"><button class="back glass" onclick="openFolderDirectory('${String(sec.id).replace(/'/g,'&#39;')}')">← رجوع للمجلدات</button><button class="back glass" onclick="goHome()">⌂ الرئيسية</button><span class="crumb">${(folderPath||[fold]).map(f=>escapeHtml(f.name)).join(' ← ')}</span></div>`;
  if(childFolders.length){html+='<div class="folders-row" style="padding:0 0 14px;">';childFolders.forEach(c=>{const count=(sec.items||[]).filter(i=>String(i.folderId)===String(c.id)).length;html+=`<div class="folder-chip glass" onclick="openFolder('${String(sec.id).replace(/'/g,'&#39;')}','${String(c.id).replace(/'/g,'&#39;')}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(c.name)}</div><div class="fcnt">${count} عنصر</div></div>`;});html+='</div>';}
  if(sec.id==='fonts'||sec.defaultType==='font'){
   html+='<div class="font-list">';if(!items.length)html+='<div class="empty"><div class="ei">🔤</div><div class="et">لا توجد ملفات خطوط</div></div>';
