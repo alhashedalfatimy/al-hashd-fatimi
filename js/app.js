@@ -99,34 +99,23 @@ function renderNavigation() {
 let publicSyncTimer = null;
 let publicSyncInProgress = false;
 async function syncPublicData() {
-  if (publicSyncInProgress || document.hidden) return;
-  publicSyncInProgress = true;
-  try {
-    const previous = JSON.stringify(allData);
-    await loadData();
-    if (previous === JSON.stringify(allData)) return;
-    renderNavigation();
-    renderHome();
-    showAnnouncement();
-    updateAnnBadge();
-    if (currentPage === 'announcements') renderAnnouncementsPage();
-    else if (currentPage === 'about') renderAboutPage();
-    else if ((allData.sections || []).some(section => String(section.id) !== 'home' && String(section.id) === String(currentPage))) {
-      const activeSection = allData.sections.find(section => String(section.id) === String(currentPage));
-      if (currentSecId && currentFoldId) {
-        if (findFolderPath(activeSection, currentFoldId)) openFolder(currentSecId, currentFoldId);
-        else navTo(String(activeSection.id));
-      } else openSection(currentPage);
-    } else if (currentPage !== 'home') {
-      currentSecId = null;
-      currentFoldId = null;
-      navTo('home');
-    }
-  } catch (e) {
-    console.warn('تعذرت مزامنة أقسام الموقع:', e);
-  } finally {
-    publicSyncInProgress = false;
-  }
+ if(publicSyncInProgress||document.hidden)return;
+ publicSyncInProgress=true;
+ try{
+  const previous=JSON.stringify(allData);await loadData();
+  if(previous===JSON.stringify(allData))return;
+  renderNavigation();renderHome();showAnnouncement();updateAnnBadge();
+  if(currentPage==='announcements')renderAnnouncementsPage();
+  else if(currentPage==='about')renderAboutPage();
+  else if(currentSecId&&currentFoldId){
+   const activeSection=(allData.sections||[]).find(sec=>String(sec.id)===String(currentSecId));
+   if(activeSection&&findFolderPath(activeSection,currentFoldId))openFolder(currentSecId,currentFoldId);
+   else if(activeSection)openSection(currentSecId);
+   else{currentSecId=null;currentFoldId=null;navTo('home');}
+  }else if(currentPage!=='home'&&(allData.sections||[]).some(sec=>String(sec.id)===String(currentPage)))openSection(currentPage);
+  else if(currentPage!=='home'){currentSecId=null;currentFoldId=null;navTo('home');}
+ }catch(e){console.warn('تعذرت مزامنة أقسام الموقع:',e);}
+ finally{publicSyncInProgress=false;}
 }
 function startPublicSync() {
   if (publicSyncTimer) clearInterval(publicSyncTimer);
