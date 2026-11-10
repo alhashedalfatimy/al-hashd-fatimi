@@ -33,24 +33,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function ensureDefaultMediaFolders() {
- const imams=['الإمام علي بن أبي طالب','الإمام الحسن بن علي','الإمام الحسين بن علي','الإمام علي زين العابدين','الإمام محمد الباقر','الإمام جعفر الصادق','الإمام موسى الكاظم','الإمام علي الرضا','الإمام محمد الجواد','الإمام علي الهادي','الإمام الحسن العسكري','الإمام محمد المهدي'];
+ const orderedFolders=[
+  'النبي محمد صلى الله عليه وآله وسلم',
+  'السيدة فاطمة الزهراء عليها السلام',
+  'الإمام علي بن أبي طالب عليه السلام',
+  'الإمام الحسن بن علي عليه السلام',
+  'الإمام الحسين بن علي عليه السلام',
+  'الإمام علي زين العابدين عليه السلام',
+  'الإمام محمد الباقر عليه السلام',
+  'الإمام جعفر الصادق عليه السلام',
+  'الإمام موسى الكاظم عليه السلام',
+  'الإمام علي الرضا عليه السلام',
+  'الإمام محمد الجواد عليه السلام',
+  'الإمام علي الهادي عليه السلام',
+  'الإمام الحسن العسكري عليه السلام',
+  'الإمام محمد المهدي عجل الله فرجه'
+ ];
  const categories=[
   {name:'صور',icon:'🖼️',type:'image',aliases:['صور','الصور']},
   {name:'فيديوهات',icon:'🎥',type:'video',aliases:['فيديوهات','الفيديوهات','فيديو','الفيديو']},
   {name:'صوتيات',icon:'🎧',type:'audio',aliases:['صوتيات','الصوتيات','صوت','الصوت']}
  ];
  const normalize=value=>String(value||'').replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[\sـ]/g,'').toLowerCase();
+ const identity=value=>normalize(value).replace(/صلىاللهوعليهوالهوسلم|عليهاالسلام|عليهالسلام|عجلاللهفرجه|الامام/g,'').replace(/بنابيطالب|بن علي|زينالعابدين/g,'');
  let changed=false;if(!Array.isArray(data.sections))data.sections=[];
  let home=data.sections.find(section=>String(section.id)==='home');
  if(!home){home={id:'home',name:'الرئيسية',icon:'🏠',folders:[],items:[]};data.sections.push(home);changed=true;}
+ if(!Array.isArray(home.folders))home.folders=[];
+ if(home.folders.length){home.folders=[];changed=true;}
+ if(Array.isArray(home.items)&&home.items.length){home.items=[];changed=true;}
  for(const spec of categories){
   const aliases=new Set(spec.aliases.map(normalize));
   let section=data.sections.find(item=>String(item.parentId||'')==='home'&&aliases.has(normalize(item.name)));
-  if(!section){section={id:'s'+Date.now()+Math.random().toString(36).slice(2,7),name:spec.name,icon:spec.icon,parentId:'home',defaultType:spec.type,folders:[],items:[]};const homeIndex=data.sections.findIndex(item=>String(item.id)==='home');data.sections.splice(homeIndex<0?data.sections.length:homeIndex,0,section);changed=true;}
+  if(!section){section={id:'s'+Date.now()+Math.random().toString(36).slice(2,7),name:spec.name,icon:spec.icon,parentId:'home',defaultType:spec.type,folders:[],items:[]};data.sections.push(section);changed=true;}
   section.parentId='home';if(!section.icon)section.icon=spec.icon;if(!section.defaultType)section.defaultType=spec.type;
   if(!Array.isArray(section.folders))section.folders=[];if(!Array.isArray(section.items))section.items=[];
-  const existing=new Set(section.folders.map(folder=>normalize(folder.name)));
-  for(const name of imams)if(!existing.has(normalize(name))){section.folders.push({id:'f'+Date.now()+Math.random().toString(36).slice(2,8),name});existing.add(normalize(name));changed=true;}
+  const byIdentity=new Map();
+  section.folders.forEach(folder=>{const key=identity(folder.name);if(!byIdentity.has(key))byIdentity.set(key,folder);});
+  const ordered=[];
+  for(const name of orderedFolders){
+   const key=identity(name);let folder=byIdentity.get(key);
+   if(!folder){folder={id:'f'+Date.now()+Math.random().toString(36).slice(2,8),name};changed=true;}
+   else if(folder.name!==name){folder.name=name;changed=true;}
+   ordered.push(folder);
+  }
+  const orderedIds=new Set(ordered.map(folder=>String(folder.id)));
+  const extras=section.folders.filter(folder=>!orderedIds.has(String(folder.id)));
+  section.folders=[...ordered,...extras];
  }
  if(changed)await saveData();
 }
@@ -242,10 +271,11 @@ function renderSection(sid) {
  const folders=sec.folders||[],children=(data.sections||[]).filter(c=>String(c.parentId||'')===String(sec.id));
  let html=`<div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button><span class="sep">|</span><span class="crumb">${esc(sec.name)}</span></div><div class="page-title">${sec.id==='home'?'🏠 تنظيم محتوى الرئيسية':'📁 إدارة: '+esc(sec.name)}</div>`;
  if(children.length){html+='<div class="page-title" style="font-size:.82rem;color:var(--text2);">الأقسام الفرعية</div>';children.forEach(c=>{const i=data.sections.indexOf(c),cc=data.sections.filter(n=>String(n.parentId||'')===String(c.id)).length;html+=`<div class="card glass" onclick="push('section',{id:'${String(c.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">${c.icon||'📁'}</div><div><div class="name">${esc(c.name)}</div><div class="meta">${cc} قسم فرعي · ${c.folders?.length||0} مجلد</div></div></div><div class="actions"><button class="ed" onclick="event.stopPropagation();editSec(${i})">✏️</button><button class="del" onclick="event.stopPropagation();delSec(${i})">🗑</button></div></div>`;});}
- if(folders.length)html+='<div class="page-title" style="font-size:.82rem;color:var(--text2);">المجلدات التابعة لهذا المستوى</div>';
+ if(folders.length&&String(sec.id)!=='home')html+='<div class="page-title" style="font-size:.82rem;color:var(--text2);">المجلدات التابعة لهذا القسم</div>';
  if(!folders.length&&!children.length)html+='<div class="empty"><div class="ei">📁</div><div>لا توجد أقسام فرعية أو مجلدات في هذا المستوى</div></div>';
- else folders.forEach((f,i)=>{const cnt=(sec.items||[]).filter(x=>String(x.folderId)===String(f.id)).length;html+=`<div class="card glass" onclick="push('folder',{sid:'${String(sec.id).replace(/'/g,'&#39;')}',fid:'${String(f.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">📁</div><div><div class="name">${esc(f.name)}</div><div class="meta">${cnt} عنصر</div></div></div><div class="actions"><button class="ed" onclick="event.stopPropagation();editFld('${String(sec.id).replace(/'/g,'&#39;')}',${i})">✏️</button><button class="del" onclick="event.stopPropagation();delFld('${String(sec.id).replace(/'/g,'&#39;')}',${i})">🗑</button></div></div>`;});
- html+=`<div class="fab glass" onclick="openAddSec('${String(sec.id).replace(/'/g,'&#39;')}')">➕ إضافة قسم فرعي داخل هذا المستوى</div><div class="fab glass" onclick="openAddFld('${String(sec.id).replace(/'/g,'&#39;')}')">📁 إضافة مجلد داخل هذا المستوى</div>`;
+ else if(String(sec.id)!=='home')folders.forEach((f,i)=>{const cnt=(sec.items||[]).filter(x=>String(x.folderId)===String(f.id)).length;html+=`<div class="card glass" onclick="push('folder',{sid:'${String(sec.id).replace(/'/g,'&#39;')}',fid:'${String(f.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">📁</div><div><div class="name">${esc(f.name)}</div><div class="meta">${cnt} عنصر</div></div></div><div class="actions"><button class="ed" onclick="event.stopPropagation();editFld('${String(sec.id).replace(/'/g,'&#39;')}',${i})">✏️</button><button class="del" onclick="event.stopPropagation();delFld('${String(sec.id).replace(/'/g,'&#39;')}',${i})">🗑</button></div></div>`;});
+ html+=`<div class="fab glass" onclick="openAddSec('${String(sec.id).replace(/'/g,'&#39;')}')">➕ إضافة قسم فرعي داخل هذا المستوى</div>`;
+ if(String(sec.id)!=='home')html+=`<div class="fab glass" onclick="openAddFld('${String(sec.id).replace(/'/g,'&#39;')}')">📁 إضافة مجلد داخل هذا القسم</div>`;
  view.innerHTML=html;window.scrollTo(0,0);
 }
 function renderFolder(sid, fid) {
