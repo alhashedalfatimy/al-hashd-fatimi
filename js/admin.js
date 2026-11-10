@@ -61,7 +61,6 @@ async function ensureDefaultMediaFolders() {
  if(!home){home={id:'home',name:'الرئيسية',icon:'🏠',folders:[],items:[]};data.sections.push(home);changed=true;}
  if(!Array.isArray(home.folders))home.folders=[];
  if(home.folders.length){home.folders=[];changed=true;}
- if(Array.isArray(home.items)&&home.items.length){home.items=[];changed=true;}
  for(const spec of categories){
   const aliases=new Set(spec.aliases.map(normalize));
   let section=data.sections.find(item=>String(item.parentId||'')==='home'&&aliases.has(normalize(item.name)));
