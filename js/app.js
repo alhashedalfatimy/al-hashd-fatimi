@@ -128,13 +128,18 @@ function startPublicSync() {
 function renderHome() {
  const container=document.getElementById('home-content'),home=(allData.sections||[]).find(s=>String(s.id)==='home');
  const children=(allData.sections||[]).filter(s=>String(s.parentId||'')==='home');let html='';
- if(children.length){html+=`<div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📂</span><span>الأقسام</span></div><span class="sec-count glass">${children.length}</span></div><div class="folders-row">`;
- children.forEach(s=>{const cc=allData.sections.filter(c=>String(c.parentId||'')===String(s.id)).length,fc=(s.folders||[]).length;html+=`<div class="folder-chip glass" onclick="openSection('${String(s.id).replace(/'/g,'&#39;')}')"><div class="fic">${escapeHtml(s.icon||'📁')}</div><div class="fnm">${escapeHtml(s.name)}</div><div class="fcnt">${cc} قسم فرعي · ${fc} مجلد</div></div>`;});html+='</div></div>';}
- if(home){const folders=home.folders||[];html+=`<div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">🏠</span><span>مجلدات الرئيسية</span></div><span class="sec-count glass">${folders.length}</span></div><div class="folders-row">`;
- if(!folders.length&&!children.length)html+='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام أو مجلدات بعد</div></div>';
- else folders.forEach(f=>{const count=(home.items||[]).filter(i=>String(i.folderId)===String(f.id)).length;html+=`<div class="folder-chip glass" onclick="openFolder('home','${String(f.id).replace(/'/g,'&#39;')}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(f.name)}</div><div class="fcnt">${count} عنصر</div></div>`;});
- html+='</div></div>';}
- if(!home&&!children.length)html='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام بعد</div></div>';
+ if(children.length)children.forEach(sec=>{
+  const folders=sec.folders||[];
+  html+=`<section class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">${escapeHtml(sec.icon||'📁')}</span><span>${escapeHtml(sec.name)}</span></div><span class="sec-count glass">${folders.length} مجلد</span></div>`;
+  if(folders.length){html+='<div class="folders-row">';folders.forEach(folder=>{
+   const count=(sec.items||[]).filter(item=>String(item.folderId)===String(folder.id)).length;
+   html+=`<div class="folder-chip glass" style="display:flex;flex-direction:column;align-items:center;gap:9px;min-width:145px;"><div class="fic">📁</div><div class="fnm">${escapeHtml(folder.name)}</div><div class="fcnt">${count} عنصر</div><button type="button" class="folder-enter" style="border:0;border-radius:9px;padding:8px 12px;background:var(--accent);color:#fff;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;" onclick="event.stopPropagation();openFolder('${String(sec.id).replace(/'/g,'&#39;')}','${String(folder.id).replace(/'/g,'&#39;')}')">دخول للقسم</button></div>`;
+  });html+='</div>';}else html+='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد مجلدات في هذا القسم بعد</div></div>';
+  html+='</section>';
+ });
+ if(home&&(home.folders||[]).length){const folders=home.folders||[];html+=`<section class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">🏠</span><span>مجلدات الرئيسية</span></div><span class="sec-count glass">${folders.length}</span></div><div class="folders-row">`;
+ folders.forEach(folder=>{const count=(home.items||[]).filter(item=>String(item.folderId)===String(folder.id)).length;html+=`<div class="folder-chip glass" onclick="openFolder('home','${String(folder.id).replace(/'/g,'&#39;')}')"><div class="fic">📁</div><div class="fnm">${escapeHtml(folder.name)}</div><div class="fcnt">${count} عنصر</div></div>`;});html+='</div></section>';}
+ if(!children.length&&!(home&&(home.folders||[]).length))html='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام أو مجلدات بعد</div></div>';
  container.innerHTML=html;
 }
 // ===== Announcement Bar =====
