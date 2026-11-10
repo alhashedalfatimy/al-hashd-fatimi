@@ -127,24 +127,33 @@ function startPublicSync() {
 // ===== Render Home =====
 function renderHome() {
  const container=document.getElementById('home-content');
+ if(!container)return;
  const children=(allData.sections||[]).filter(s=>String(s.parentId||'')==='home');
  let html='';
  children.forEach(sec=>{
   const folders=getFolderTree(sec).roots,preview=folders.slice(0,2);
   html+='<section class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">'+escapeHtml(sec.icon||'📁')+'</span><span>'+escapeHtml(sec.name)+'</span></div></div>';
   if(preview.length){
-   html+='<div style="display:flex;flex-direction:column;gap:9px;padding:0 16px;">';
+   html+='<div class="home-folder-strip" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 16px;align-items:stretch;">';
    preview.forEach(folder=>{
     const count=(sec.items||[]).filter(item=>String(item.folderId)===String(folder.id)).length;
-    html+='<div class="folder-line glass" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;text-align:right;"><span style="font-size:1.6rem;">📁</span><div style="flex:1;min-width:0;"><div class="fnm" style="white-space:normal;">'+escapeHtml(folder.name)+'</div><div class="fcnt">'+count+' عنصر</div></div><button type="button" style="flex:0 0 auto;border:0;border-radius:9px;padding:8px 13px;background:var(--accent);color:#fff;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;" onclick="event.stopPropagation();openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(folder.id).replace(/'/g,'&#39;')+'\')">دخول للقسم</button></div>';
+    html+='<button type="button" class="folder-line glass home-folder-card" data-home-section="'+escapeHtml(String(sec.id))+'" data-home-folder="'+escapeHtml(String(folder.id))+'" style="min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 5px;border-radius:13px;text-align:center;color:var(--text);font:inherit;cursor:pointer;"><span style="font-size:1.8rem;line-height:1.2;">📁</span><span class="fnm" style="font-size:.72rem;line-height:1.5;white-space:normal;overflow-wrap:anywhere;">'+escapeHtml(folder.name)+'</span><span class="fcnt" style="font-size:.62rem;">'+count+' عنصر</span></button>';
    });
+   if(folders.length>2){
+    html+='<button type="button" class="back glass home-more-folders" data-home-section="'+escapeHtml(String(sec.id))+'" style="min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:10px 5px;border-radius:13px;text-align:center;white-space:normal;font:inherit;font-size:.72rem;font-weight:800;line-height:1.5;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 5px 18px rgba(0,0,0,.08);cursor:pointer;"><span style="font-size:1.45rem;">☷</span><span>دخول بقية الأقسام</span></button>';
+   }
    html+='</div>';
   } else html+='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد مجلدات في هذا القسم بعد</div></div>';
-  if(folders.length>2)html+='<div style="padding:10px 16px 14px;"><button type="button" class="back glass" style="width:100%;padding:11px;" onclick="openFolderDirectory(\''+String(sec.id).replace(/'/g,'&#39;')+'\')">دخول لبقية الأقسام</button></div>';
   html+='</section>';
  });
  if(!children.length)html='<div class="empty"><div class="ei">📂</div><div class="et">لا توجد أقسام بعد</div></div>';
  container.innerHTML=html;
+ container.querySelectorAll('.home-folder-card').forEach(button=>button.addEventListener('click',()=>{
+  openFolder(button.dataset.homeSection,button.dataset.homeFolder);
+ }));
+ container.querySelectorAll('.home-more-folders').forEach(button=>button.addEventListener('click',()=>{
+  openFolderDirectory(button.dataset.homeSection);
+ }));
 }
 // ===== Announcement Bar =====
 function showAnnouncement() {
