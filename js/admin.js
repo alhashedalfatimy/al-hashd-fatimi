@@ -103,71 +103,25 @@ function render() {
 
 // ===== SECTIONS =====
 function renderSections() {
-  stack = [{ type: 'sections' }];
-  const view = document.getElementById('view');
-  const secs = (data.sections || []).filter(section => String(section.id) !== 'home');
-  let html = '<div class="page-title">📋 إدارة الأقسام الرئيسية</div>';
-  html += '<div class="page-title" style="font-size:.78rem;color:var(--text2);font-weight:600;">صفحات الموقع الأساسية</div>';
-  [
-    { name: 'الرئيسية', icon: '🏠', note: 'صفحة عرض محتوى الموقع' },
-    { name: 'الإعلانات', icon: '📢', note: 'صفحة الإعلانات المنشورة' },
-    { name: 'عن التطبيق', icon: 'ℹ️', note: 'معلومات التطبيق' }
-  ].forEach(page => {
-    html += `
-      <div class="card glass" style="cursor:default;">
-        <div class="info"><div class="icon">${page.icon}</div><div>
-          <div class="name">${page.name}</div><div class="meta">${page.note} · صفحة ثابتة</div>
-        </div></div>
-      </div>`;
-  });
-  html += '<div class="page-title">الأقسام القابلة للإدارة والإضافة والحذف</div>';
-  if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام إضافية</div></div>';
-  else secs.forEach(s => {
-    const i = data.sections.indexOf(s);
-    html += `
-      <div class="card glass">
-        <div class="info"><div class="icon">${s.icon||'📁'}</div><div>
-          <div class="name">${esc(s.name)}</div>
-          <div class="meta">${s.folders?.length||0} مجلد · ${s.items?.length||0} عنصر</div>
-        </div></div>
-        <div class="actions">
-          <button class="ed" title="تعديل القسم" onclick="editSec(${i})">✏️</button>
-          <button class="del" title="حذف القسم" onclick="delSec(${i})">🗑</button>
-        </div>
-      </div>`;
-  });
-  html += `
-    <div class="fab glass" onclick="openAddSec()">➕ إضافة قسم رئيسي</div>
-    <div class="fab glass" onclick="push('folderSections',{})">📁 إدارة المجلدات داخل الأقسام</div>
-    <div class="fab glass" onclick="push('anns',{})">📢 نشر إعلان</div>
-    <div class="fab glass" onclick="push('about',{})">ℹ️ إدارة معلومات التطبيق</div>`;
-  view.innerHTML = html;
-  window.scrollTo(0, 0);
+ stack=[{type:'sections'}]; const view=document.getElementById('view');
+ const secs=(data.sections||[]).filter(s=>String(s.id)!=='home'&&!s.parentId);
+ let html='<div class="page-title">📋 إدارة الأقسام الرئيسية</div><div class="page-title" style="font-size:.78rem;color:var(--text2);font-weight:600;">صفحات الموقع الأساسية</div>';
+ [{name:'الرئيسية',icon:'🏠',note:'صفحة عرض محتوى الموقع'},{name:'الإعلانات',icon:'📢',note:'صفحة الإعلانات المنشورة'},{name:'عن التطبيق',icon:'ℹ️',note:'معلومات التطبيق'}].forEach(x=>{html+=`<div class="card glass" style="cursor:default;"><div class="info"><div class="icon">${x.icon}</div><div><div class="name">${x.name}</div><div class="meta">${x.note} · صفحة ثابتة</div></div></div></div>`;});
+ html+='<div class="page-title">الأقسام الرئيسية القابلة للإدارة</div>';
+ if(!secs.length) html+='<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام إضافية</div></div>';
+ else secs.forEach(s=>{const i=data.sections.indexOf(s),cc=data.sections.filter(c=>String(c.parentId||'')===String(s.id)).length;html+=`<div class="card glass" onclick="push('section',{id:'${String(s.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">${s.icon||'📁'}</div><div><div class="name">${esc(s.name)}</div><div class="meta">${cc} قسم فرعي · ${s.folders?.length||0} مجلد</div></div></div><div class="actions"><button class="ed" onclick="event.stopPropagation();editSec(${i})">✏️</button><button class="del" onclick="event.stopPropagation();delSec(${i})">🗑</button></div></div>`;});
+ html+=`<div class="fab glass" onclick="openAddSec()">➕ إضافة قسم رئيسي</div><div class="fab glass" onclick="push('folderSections',{})">📁 إدارة الأقسام والمجلدات</div><div class="fab glass" onclick="push('anns',{})">📢 نشر إعلان</div><div class="fab glass" onclick="push('about',{})">ℹ️ إدارة معلومات التطبيق</div>`;
+ view.innerHTML=html;window.scrollTo(0,0);
 }
-
 function renderFolderSections() {
-  const view = document.getElementById('view');
-  let html = `
-    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
-    <span class="sep">|</span><span class="crumb">📁 إدارة المجلدات</span></div>
-    <div class="page-title">اختر القسم الذي تريد إدارة مجلداته</div>`;
-  const home = data.sections.find(section => String(section.id) === 'home');
-  const secs = [home, ...(data.sections || []).filter(section => String(section.id) !== 'home')].filter(Boolean);
-  if (!secs.length) html += '<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
-  else secs.forEach(sec => {
-    html += `
-      <div class="card glass" onclick="push('section',{id:'${String(sec.id).replace(/'/g, '&#39;')}'})">
-        <div class="info"><div class="icon">${sec.icon || '📁'}</div><div>
-          <div class="name">${esc(sec.name)}</div>
-          <div class="meta">${sec.folders?.length || 0} مجلد</div>
-        </div></div>
-        <div class="actions"><span style="color:var(--accent-light);font-weight:800;">إدارة ←</span></div>
-      </div>`;
-  });
-  view.innerHTML = html;
-  window.scrollTo(0, 0);
+ const view=document.getElementById('view');
+ let html=`<div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button><span class="sep">|</span><span class="crumb">📁 إدارة الأقسام والمجلدات</span></div><div class="page-title">اختر القسم الذي تريد إدارته أو إنشاء أقسام فرعية بداخله</div>`;
+ const home=data.sections.find(s=>String(s.id)==='home');
+ const secs=[home,...(data.sections||[]).filter(s=>String(s.id)!=='home'&&!s.parentId)].filter(Boolean);
+ if(!secs.length)html+='<div class="empty"><div class="ei">📂</div><div>لا توجد أقسام</div></div>';
+ else secs.forEach(s=>{const cc=data.sections.filter(c=>String(c.parentId||'')===String(s.id)).length;html+=`<div class="card glass" onclick="push('section',{id:'${String(s.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">${s.icon||'📁'}</div><div><div class="name">${esc(s.name)}</div><div class="meta">${cc} قسم فرعي · ${s.folders?.length||0} مجلد</div></div></div><div class="actions"><span style="color:var(--accent-light);font-weight:800;">إدارة ←</span></div></div>`;});
+ view.innerHTML=html;window.scrollTo(0,0);
 }
-
 let adminSyncTimer = null;
 let adminSyncInProgress = false;
 let adminWritesInProgress = 0;
@@ -260,32 +214,17 @@ async function saveAbout() {
 }
 
 function renderSection(sid) {
-  const view = document.getElementById('view');
-  const sec = data.sections?.find(s => s.id === sid);
-  if (!sec) { pop(); return; }
-  const folders = sec.folders || [];
-  let html = `
-    <div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button>
-    <span class="sep">|</span><span class="crumb">${esc(sec.name)}</span></div>
-    <div class="page-title">📁 مجلدات قسم: ${esc(sec.name)}</div>`;
-  if (!folders.length) html += '<div class="empty"><div class="ei">📁</div><div>لا توجد مجلدات</div></div>';
-  else folders.forEach((f, i) => {
-    const cnt = (sec.items||[]).filter(x => x.folderId === f.id).length;
-    html += `
-      <div class="card glass" onclick="push('folder',{sid:'${sid}',fid:'${f.id}'})">
-        <div class="info"><div class="icon">📁</div><div>
-          <div class="name">${esc(f.name)}</div><div class="meta">${cnt} عنصر</div>
-        </div></div>
-        <div class="actions">
-          <button class="ed" onclick="event.stopPropagation();editFld('${sid}',${i})">✏️</button>
-          <button class="del" onclick="event.stopPropagation();delFld('${sid}',${i})">🗑</button>
-        </div>
-      </div>`;
-  });
-  html += `<div class="fab glass" onclick="openAddFld('${sid}')">➕ مجلد جديد</div>`;
-  view.innerHTML = html; window.scrollTo(0, 0);
+ const view=document.getElementById('view'),sec=data.sections?.find(s=>String(s.id)===String(sid));
+ if(!sec){pop();return;}
+ const folders=sec.folders||[],children=(data.sections||[]).filter(c=>String(c.parentId||'')===String(sec.id));
+ let html=`<div class="breadcrumb"><button class="back glass" onclick="pop()">← رجوع</button><span class="sep">|</span><span class="crumb">${esc(sec.name)}</span></div><div class="page-title">${sec.id==='home'?'🏠 تنظيم محتوى الرئيسية':'📁 إدارة: '+esc(sec.name)}</div>`;
+ if(children.length){html+='<div class="page-title" style="font-size:.82rem;color:var(--text2);">الأقسام الفرعية</div>';children.forEach(c=>{const i=data.sections.indexOf(c),cc=data.sections.filter(n=>String(n.parentId||'')===String(c.id)).length;html+=`<div class="card glass" onclick="push('section',{id:'${String(c.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">${c.icon||'📁'}</div><div><div class="name">${esc(c.name)}</div><div class="meta">${cc} قسم فرعي · ${c.folders?.length||0} مجلد</div></div></div><div class="actions"><button class="ed" onclick="event.stopPropagation();editSec(${i})">✏️</button><button class="del" onclick="event.stopPropagation();delSec(${i})">🗑</button></div></div>`;});}
+ if(folders.length)html+='<div class="page-title" style="font-size:.82rem;color:var(--text2);">المجلدات التابعة لهذا المستوى</div>';
+ if(!folders.length&&!children.length)html+='<div class="empty"><div class="ei">📁</div><div>لا توجد أقسام فرعية أو مجلدات في هذا المستوى</div></div>';
+ else folders.forEach((f,i)=>{const cnt=(sec.items||[]).filter(x=>String(x.folderId)===String(f.id)).length;html+=`<div class="card glass" onclick="push('folder',{sid:'${String(sec.id).replace(/'/g,'&#39;')}',fid:'${String(f.id).replace(/'/g,'&#39;')}'})"><div class="info"><div class="icon">📁</div><div><div class="name">${esc(f.name)}</div><div class="meta">${cnt} عنصر</div></div></div><div class="actions"><button class="ed" onclick="event.stopPropagation();editFld('${String(sec.id).replace(/'/g,'&#39;')}',${i})">✏️</button><button class="del" onclick="event.stopPropagation();delFld('${String(sec.id).replace(/'/g,'&#39;')}',${i})">🗑</button></div></div>`;});
+ html+=`<div class="fab glass" onclick="openAddSec('${String(sec.id).replace(/'/g,'&#39;')}')">➕ إضافة قسم فرعي داخل هذا المستوى</div><div class="fab glass" onclick="openAddFld('${String(sec.id).replace(/'/g,'&#39;')}')">📁 إضافة مجلد داخل هذا المستوى</div>`;
+ view.innerHTML=html;window.scrollTo(0,0);
 }
-
 function renderFolder(sid, fid) {
   const view = document.getElementById('view');
   const sec = data.sections?.find(s => s.id === sid);
@@ -445,66 +384,45 @@ function editSec(i) {
   showModal();
 }
 async function saveEditSec(i) {
-  const n = document.getElementById('esn').value.trim();
-  const ic = document.getElementById('esi').value.trim();
-  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
-  data.sections[i].name = n; data.sections[i].icon = ic;
-  await saveData(); hideModal(); renderSections();
-  toast('تم التعديل', 'ok');
+ const n=document.getElementById('esn').value.trim(),ic=document.getElementById('esi').value.trim();
+ if(!n){toast('الاسم مطلوب','bad');return;}
+ const s=data.sections[i];if(!s){toast('القسم غير موجود','bad');return;}
+ s.name=n;s.icon=ic;await saveData();hideModal();
+ if(s.parentId)renderSection(s.parentId);else renderSections();
+ toast('تم التعديل','ok');
 }
 async function delSec(i) {
-  const section = data.sections[i];
-  if (!section || String(section.id) === 'home') { toast('لا يمكن حذف الصفحة الرئيسية', 'bad'); return; }
-  const folderCount = (section.folders || []).length;
-  const itemCount = (section.items || []).length;
-  if (!confirm(`حذف القسم "${section.name}" نهائياً مع ${folderCount} مجلد و${itemCount} عنصر تابع له؟`)) return;
-  data.sections.splice(i, 1);
-  try {
-    await saveData();
-    renderSections();
-    toast('تم حذف القسم وجميع محتوياته من الموقع', 'ok');
-  } catch (e) {
-    data.sections.splice(i, 0, section);
-    renderSections();
-    toast('تعذر حذف القسم: ' + e.message, 'bad');
-  }
+ const section=data.sections[i];
+ if(!section||String(section.id)==='home'){toast('لا يمكن حذف الصفحة الرئيسية','bad');return;}
+ const ids=new Set([String(section.id)]);let changed=true;
+ while(changed){changed=false;(data.sections||[]).forEach(s=>{if(s.parentId&&ids.has(String(s.parentId))&&!ids.has(String(s.id))){ids.add(String(s.id));changed=true;}});}
+ const removed=data.sections.filter(s=>ids.has(String(s.id)));
+ const fc=removed.reduce((n,s)=>n+(s.folders||[]).length,0),ic=removed.reduce((n,s)=>n+(s.items||[]).length,0);
+ if(!confirm(`حذف القسم "${section.name}" وجميع أقسامه الفرعية (${removed.length}) ومجلداته (${fc}) وملفاته (${ic})؟`))return;
+ const previous=data.sections.slice();data.sections=data.sections.filter(s=>!ids.has(String(s.id)));
+ try{await saveData();renderSections();toast('تم حذف القسم وجميع المستويات التابعة له','ok');}
+ catch(e){data.sections=previous;renderSections();toast('تعذر حذف القسم: '+e.message,'bad');}
 }
-
-function openAddSec() {
-  const body = document.getElementById('modal-body');
-  document.getElementById('modal-title').textContent = '➕ قسم جديد';
-  body.innerHTML = `
-    <div class="fg"><label>الاسم</label><input type="text" id="nsn" placeholder="مثال: المقالات"></div>
-    <div class="fg"><label>الأيقونة</label><input type="text" id="nsi" value="📁" maxlength="2"></div>
-    <div class="fg"><label>النوع</label>
-      <select id="nst"><option value="image">🖼 صور</option><option value="video">🎥 فيديو</option><option value="audio">🎧 صوت</option><option value="font">🔤 خطوط</option></select>
-    </div>
-    <button class="save" onclick="saveNewSec()">حفظ</button>`;
-  showModal();
+function openAddSec(parentId=null) {
+ const parent=parentId==null?null:data.sections.find(s=>String(s.id)===String(parentId));
+ if(parentId!=null&&!parent){toast('القسم الأب غير موجود','bad');return;}
+ const body=document.getElementById('modal-body');document.getElementById('modal-title').textContent=parent?'➕ قسم فرعي جديد':'➕ قسم رئيسي جديد';
+ const parentField=parent?`<div class="fg"><label>القسم الأب</label><input type="text" value="${esc(parent.name)}" disabled></div>`:'';
+ const parentArg=parent?"'"+String(parent.id).replace(/'/g,"\\'")+"'":"null";
+ body.innerHTML=`<div class="fg"><label>الاسم</label><input type="text" id="nsn" placeholder="اكتب اسم القسم"></div><div class="fg"><label>الأيقونة</label><input type="text" id="nsi" value="📁" maxlength="2"></div><div class="fg"><label>نوع المحتوى الافتراضي</label><select id="nst"><option value="image">🖼 صور</option><option value="video">🎥 فيديو</option><option value="audio">🎧 صوت</option><option value="font">🔤 خطوط</option></select></div>${parentField}<button class="save" onclick="saveNewSec(${parentArg})">حفظ</button>`;
+ showModal();
 }
-async function saveNewSec() {
-  const n = document.getElementById('nsn').value.trim();
-  const ic = document.getElementById('nsi').value.trim() || '📁';
-  const t = document.getElementById('nst').value;
-  if (!n) { toast('الاسم مطلوب', 'bad'); return; }
-  const section = { id: 's' + Date.now(), name: n, icon: ic, folders: [], items: [], defaultType: t };
-  const button = document.querySelector('#modal-body .save');
-  if (button) { button.disabled = true; button.textContent = 'جارٍ الحفظ...'; }
-  const homeIndex = data.sections.findIndex(existing => String(existing.id) === 'home');
-  if (homeIndex >= 0) data.sections.splice(homeIndex, 0, section);
-  else data.sections.push(section);
-  try {
-    await saveData();
-    hideModal();
-    renderSections();
-    toast('تم حفظ القسم وإضافته بنجاح', 'ok');
-  } catch (e) {
-    data.sections = data.sections.filter(s => String(s.id) !== String(section.id));
-    if (button) { button.disabled = false; button.textContent = 'حفظ'; }
-    toast('لم يُحفظ القسم: ' + (e.message || 'تحقق من الاتصال ثم أعد المحاولة'), 'bad');
-  }
+async function saveNewSec(parentId=null) {
+ const n=document.getElementById('nsn').value.trim(),ic=document.getElementById('nsi').value.trim()||'📁',t=document.getElementById('nst').value;
+ if(!n){toast('الاسم مطلوب','bad');return;}
+ if(parentId!=null&&!data.sections.some(s=>String(s.id)===String(parentId))){toast('القسم الأب غير موجود','bad');return;}
+ const section={id:'s'+Date.now()+Math.random().toString(36).slice(2,6),name:n,icon:ic,folders:[],items:[],defaultType:t};
+ if(parentId!=null)section.parentId=String(parentId);
+ const button=document.querySelector('#modal-body .save');if(button){button.disabled=true;button.textContent='جارٍ الحفظ...';}
+ const hi=data.sections.findIndex(s=>String(s.id)==='home');if(hi>=0)data.sections.splice(hi,0,section);else data.sections.push(section);
+ try{await saveData();hideModal();if(parentId==null)renderSections();else renderSection(parentId);toast('تم حفظ القسم في مستواه الصحيح','ok');}
+ catch(e){data.sections=data.sections.filter(s=>String(s.id)!==String(section.id));if(button){button.disabled=false;button.textContent='حفظ';}toast('لم يُحفظ القسم: '+(e.message||'تحقق من الاتصال ثم أعد المحاولة'),'bad');}
 }
-
 // ===== FOLDER CRUD =====
 function editFld(sid, i) {
   const sec = data.sections?.find(s => s.id === sid);
