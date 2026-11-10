@@ -3,6 +3,9 @@ let allData = { version: '3.0.0.0', sections: [], announcements: [], about: {}, 
 let currentPage = 'home';
 let currentSecId = null;
 let currentFoldId = null;
+let currentView = 'home';
+let folderReturnState = null;
+const NAV_STATE_KEY = 'alhashd_public_navigation_v1';
 let mediaList = [];
 let mediaIdx = 0;
 let audioEl = null;
@@ -26,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupPWA();
     renderNavigation();
     renderHome();
+    restoreNavigationState();
     startPublicSync();
     showAnnouncement();
     updateAnnBadge();
@@ -105,9 +109,13 @@ async function syncPublicData() {
   const previous=JSON.stringify(allData);await loadData();
   if(previous===JSON.stringify(allData))return;
   renderNavigation();renderHome();showAnnouncement();updateAnnBadge();
-  if(currentPage==='announcements')renderAnnouncementsPage();
-  else if(currentPage==='about')renderAboutPage();
-  else if(currentSecId&&currentFoldId){
+  if(currentView==='announcements'||currentPage==='announcements')renderAnnouncementsPage();
+  else if(currentView==='about'||currentPage==='about')renderAboutPage();
+  else if(currentView==='folderDirectory'&&currentSecId){
+   const activeSection=(allData.sections||[]).find(sec=>String(sec.id)===String(currentSecId));
+   if(activeSection)openFolderDirectory(currentSecId);
+   else{currentSecId=null;currentFoldId=null;navTo('home');}
+  }else if(currentSecId&&currentFoldId){
    const activeSection=(allData.sections||[]).find(sec=>String(sec.id)===String(currentSecId));
    if(activeSection&&findFolderPath(activeSection,currentFoldId))openFolder(currentSecId,currentFoldId);
    else if(activeSection)openSection(currentSecId);
@@ -275,27 +283,57 @@ function setFolderNavigationMode(active) {
  if(nav)nav.style.display=active?'none':'';
  document.body.classList.toggle('folder-navigation-mode',!!active);
 }
+function saveNavigationState() {
+ try {
+  sessionStorage.setItem(NAV_STATE_KEY, JSON.stringify({
+   page: currentPage, sectionId: currentSecId, folderId: currentFoldId,
+   view: currentView, folderReturnState
+  }));
+ } catch(e) { console.warn('تعذر حفظ موضع التصفح:', e); }
+}
+function restoreNavigationState() {
+ let saved=null;
+ try { saved=JSON.parse(sessionStorage.getItem(NAV_STATE_KEY)||'null'); } catch(e) {}
+ if(!saved||!saved.view)return;
+ folderReturnState=saved.folderReturnState||null;
+ if(saved.view==='folder'&&saved.sectionId&&saved.folderId)openFolder(saved.sectionId,saved.folderId,true);
+ else if(saved.view==='folderDirectory'&&saved.sectionId)openFolderDirectory(saved.sectionId);
+ else if(saved.view==='section'&&saved.sectionId)openSection(saved.sectionId);
+ else if(saved.view==='announcements'||saved.view==='about')navTo(saved.view);
+ else navTo('home');
+}
+function goBackFromFolder() {
+ const target=folderReturnState;
+ if(!target||target.view==='section'&&!target.sectionId){openSection(currentSecId);return;}
+ if(target.view==='folder'&&target.sectionId&&target.folderId)openFolder(target.sectionId,target.folderId,true);
+ else if(target.view==='folderDirectory'&&target.sectionId)openFolderDirectory(target.sectionId);
+ else if(target.view==='section'&&target.sectionId)openSection(target.sectionId);
+ else navTo('home');
+}
 function navTo(page) {
  setFolderNavigationMode(false);
  if(page!=='home'&&page!=='announcements'&&page!=='about'){openSection(page);return;}
- currentPage=page;currentSecId=null;currentFoldId=null;
+ currentPage=page;currentSecId=null;currentFoldId=null;currentView=page==='home'?'home':page;
+ if(page==='home')folderReturnState=null;
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.bnav button').forEach(x=>x.classList.remove('on'));
  if(page==='announcements'){renderAnnouncementsPage();markAnnouncementsAsSeen();}else if(page==='about')renderAboutPage();else renderHome();
  const target=document.getElementById('page-'+page);if(target)target.classList.add('on');
  const btn=Array.from(document.querySelectorAll('.bnav button')).find(b=>b.dataset.page===String(page));if(btn)btn.classList.add('on');
  window.scrollTo({top:0,behavior:'smooth'});
+ saveNavigationState();
 }
 function openSection(secId) {
- setFolderNavigationMode(true);
+ setFolderNavigationMode(false);
  const sec=(allData.sections||[]).find(s=>String(s.id)===String(secId));
  if(!sec||String(sec.id)==='home'){navTo('home');return;}
- currentPage=String(sec.id);currentSecId=String(sec.id);currentFoldId=null;
+ currentPage=String(sec.id);currentSecId=String(sec.id);currentFoldId=null;currentView='section';
  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.bnav button').forEach(b=>b.classList.remove('on'));
  renderSectionPage(sec.id);const target=document.getElementById('page-'+sec.id);if(target)target.classList.add('on');
  let root=sec;const visited=new Set();
  while(root.parentId&&String(root.parentId)!=='home'&&!visited.has(String(root.id))){visited.add(String(root.id));root=(allData.sections||[]).find(s=>String(s.id)===String(root.parentId))||root;}
  const active=document.querySelector('.bnav button[data-page="'+String(root.id).replace(/"/g,'\\"')+'"]');if(active)active.classList.add('on');
  window.scrollTo({top:0,behavior:'smooth'});
+ saveNavigationState();
 }
 function renderSectionPage(secId) {
  const sec=(allData.sections||[]).find(s=>String(s.id)===String(secId));if(!sec)return;
@@ -311,17 +349,17 @@ function renderSectionPage(secId) {
 }
 function openFolderDirectory(secId) {
  const sec=(allData.sections||[]).find(s=>String(s.id)===String(secId));if(!sec)return;
- setFolderNavigationMode(true);currentPage=String(sec.id);currentSecId=String(sec.id);currentFoldId=null;
+ setFolderNavigationMode(true);currentPage=String(sec.id);currentSecId=String(sec.id);currentFoldId=null;currentView='folderDirectory';
  let page=document.getElementById('page-'+secId+'-folders');if(!page){page=document.createElement('div');page.id='page-'+secId+'-folders';page.className='page';document.getElementById('dynamic-pages').appendChild(page);}
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));page.classList.add('on');
  const folders=getFolderTree(sec).roots.slice(2);
  let html='<div class="breadcrumb"><button class="back glass" onclick="goHome()">← رجوع للرئيسية</button><span class="crumb">'+escapeHtml(sec.name)+' · بقية المجلدات</span></div><div class="sec-group"><div class="sec-header"><div class="sec-label"><span class="ic">📁</span><span>مجلدات '+escapeHtml(sec.name)+'</span></div><span class="sec-count glass">'+folders.length+'</span></div><div style="display:flex;flex-direction:column;gap:9px;padding:0;">';
  folders.forEach(f=>{const count=(sec.items||[]).filter(i=>String(i.folderId)===String(f.id)).length;html+='<div class="folder-line glass" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;text-align:right;"><span style="font-size:1.6rem;">📁</span><div style="flex:1;min-width:0;"><div class="fnm" style="white-space:normal;">'+escapeHtml(f.name)+'</div><div class="fcnt">'+count+' عنصر</div></div><button type="button" style="flex:0 0 auto;border:0;border-radius:9px;padding:8px 13px;background:var(--accent);color:#fff;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;" onclick="openFolder(\''+String(sec.id).replace(/'/g,'&#39;')+'\',\''+String(f.id).replace(/'/g,'&#39;')+'\')">دخول للقسم</button></div>';});
- html+='</div></div>';page.innerHTML=html;window.scrollTo({top:0,behavior:'smooth'});
+ html+='</div></div>';page.innerHTML=html;window.scrollTo({top:0,behavior:'smooth'});saveNavigationState();
 }
 function goHome() {
   setFolderNavigationMode(false);
-  currentSecId = null; currentFoldId = null;
+  currentSecId = null; currentFoldId = null; currentView='home'; folderReturnState=null;
   navTo('home'); renderHome();
 }
 
@@ -355,9 +393,11 @@ function findFolderPath(sec, folderId) {
   const legacy = (sec?.folders || []).find(f => String(f.id) === String(folderId));
   return legacy ? [legacy] : null;
 }
-function openFolder(secId,foldId) {
+function openFolder(secId,foldId,preserveReturn=false) {
+ const previousState={view:currentView,sectionId:currentSecId,folderId:currentFoldId};
+ if(!preserveReturn&&!(currentView==='folder'&&String(currentSecId)===String(secId)&&String(currentFoldId)===String(foldId)))folderReturnState=previousState;
  setFolderNavigationMode(true);
- currentSecId=String(secId);currentFoldId=String(foldId);
+ currentSecId=String(secId);currentFoldId=String(foldId);currentPage=String(secId);currentView='folder';
  const sec=allData.sections?.find(s=>String(s.id)===String(secId)),folderPath=findFolderPath(sec,foldId),fold=folderPath?.[folderPath.length-1]||sec?.folders?.find(f=>String(f.id)===String(foldId));
  if(!sec||!fold)return;
  let page=document.getElementById('page-'+secId+'-'+foldId);if(!page){page=document.createElement('div');page.id='page-'+secId+'-'+foldId;page.className='page';document.getElementById('dynamic-pages').appendChild(page);}
@@ -365,7 +405,7 @@ function openFolder(secId,foldId) {
  let root=sec;const visited=new Set();while(root.parentId&&String(root.parentId)!=='home'&&!visited.has(String(root.id))){visited.add(String(root.id));root=(allData.sections||[]).find(s=>String(s.id)===String(root.parentId))||root;}
  const nav=document.querySelector('.bnav button[data-page="'+String(root.id).replace(/"/g,'\\"')+'"]');if(nav)nav.classList.add('on');
  const items=(sec.items||[]).filter(i=>String(i.folderId)===String(foldId)&&i.visibility!=='private'),tree=getFolderTree(sec),childFolders=tree.childrenOf(fold);
- let html=`<div class="breadcrumb"><button class="back glass" onclick="openFolderDirectory('${String(sec.id).replace(/'/g,'&#39;')}')">← رجوع للمجلدات</button><button class="back glass" onclick="goHome()">⌂ الرئيسية</button><span class="crumb">${(folderPath||[fold]).map(f=>escapeHtml(f.name)).join(' ← ')}</span></div>`;
+ let html=`<div class="breadcrumb"><button class="back glass" onclick="goBackFromFolder()">← رجوع</button><button class="back glass" onclick="goHome()">⌂ الرئيسية</button><span class="crumb">${(folderPath||[fold]).map(f=>escapeHtml(f.name)).join(' ← ')}</span></div>`;
  if(childFolders.length){html+='<div style="display:flex;flex-direction:column;gap:9px;padding:0 0 14px;">';childFolders.forEach(c=>{const count=(sec.items||[]).filter(i=>String(i.folderId)===String(c.id)).length;html+=`<div class="folder-line glass" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;text-align:right;cursor:pointer;" onclick="openFolder('${String(sec.id).replace(/'/g,'&#39;')}','${String(c.id).replace(/'/g,'&#39;')}')"><span style="font-size:1.6rem;">📁</span><div style="flex:1;min-width:0;"><div class="fnm" style="white-space:normal;">${escapeHtml(c.name)}</div><div class="fcnt">${count} عنصر</div></div><span>دخول للقسم</span></div>`;});html+='</div>';}
  if(sec.id==='fonts'||sec.defaultType==='font'){
   html+='<div class="font-list">';if(!items.length)html+='<div class="empty"><div class="ei">🔤</div><div class="et">لا توجد ملفات خطوط</div></div>';
@@ -377,7 +417,7 @@ function openFolder(secId,foldId) {
   html+='<div class="m-grid">';if(!items.length)html+='<div class="empty"><div class="ei">📂</div><div class="et">لا يوجد محتوى</div></div>';
   else items.forEach(it=>{html+=`<div class="m-card glass" data-id="${it.id}" style="position:relative;"><img src="${it.thumbnail||it.url}" alt="${escapeHtml(it.title)}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300/1a1a1a/666?text=${encodeURIComponent(it.title)}'"><div class="mi"><div class="mt">${escapeHtml(it.title)}</div><div class="md">${escapeHtml(it.description||'')}</div></div>${it.allowDownload===false?'':`<button type="button" class="media-download" onclick="event.stopPropagation();downloadMediaById('${String(it.id).replace(/'/g,'&#39;')}')">⬇️ تنزيل</button>`}</div>`;});html+='</div>';
  }
- page.innerHTML=html;window.scrollTo({top:0,behavior:'smooth'});
+ page.innerHTML=html;window.scrollTo({top:0,behavior:'smooth'});saveNavigationState();
  if(sec.defaultType==='audio'||sec.id==='audios'||(items.length&&items.every(i=>i.type==='audio'))){
   audioItems=items;page.querySelectorAll('.a-row').forEach(row=>row.addEventListener('click',e=>{if(!e.target.closest('.ap'))playAudio(parseInt(row.dataset.idx));}));
   page.querySelectorAll('.ap').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();playAudio(parseInt(btn.closest('.a-row').dataset.idx));}));
