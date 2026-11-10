@@ -116,7 +116,7 @@ async function syncPublicData() {
       if (currentSecId && currentFoldId) {
         if (findFolderPath(activeSection, currentFoldId)) openFolder(currentSecId, currentFoldId);
         else navTo(String(activeSection.id));
-      } else renderSectionPage(currentPage);
+      } else openSection(currentPage);
     } else if (currentPage !== 'home') {
       currentSecId = null;
       currentFoldId = null;
