@@ -55,7 +55,7 @@ async function ensureDefaultMediaFolders() {
   {name:'صوتيات',icon:'🎧',type:'audio',aliases:['صوتيات','الصوتيات','صوت','الصوت']}
  ];
  const normalize=value=>String(value||'').replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[\sـ]/g,'').toLowerCase();
- const identity=value=>normalize(value).replace(/صلىاللهوعليهوالهوسلم|عليهاالسلام|عليهالسلام|عجلاللهفرجه|الامام/g,'').replace(/بنابيطالب|بن علي|زينالعابدين/g,'');
+ const identity=value=>normalize(value).replace(/صلىاللهوعليهوالهوسلم|عليهاالسلام|عليهالسلام|عجلاللهفرجه|الامام/g,'');
  let changed=false;if(!Array.isArray(data.sections))data.sections=[];
  let home=data.sections.find(section=>String(section.id)==='home');
  if(!home){home={id:'home',name:'الرئيسية',icon:'🏠',folders:[],items:[]};data.sections.push(home);changed=true;}
